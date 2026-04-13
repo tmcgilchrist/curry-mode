@@ -936,6 +936,27 @@ This mode is not intended to be used directly.  Use `curry-mode'."
 ;; Eglot language ID
 (put 'curry-mode 'eglot-language-id "haskell")
 
+;; Dape (DAP debugger) integration for haskell-debugger (hdb).
+;; Requires GHC 9.14+ and hdb: cabal install haskell-debugger
+;; See https://well-typed.com/blog/2026/01/haskell-debugger/
+(with-eval-after-load 'dape
+  (defvar dape-configs)
+  (add-to-list 'dape-configs
+               `(haskell-debugger
+                 modes (curry-mode)
+                 command "hdb"
+                 command-args ("server" "--port" :autoport)
+                 port :autoport
+                 :projectRoot dape-cwd
+                 :entryFile ,(lambda ()
+                               (when buffer-file-name
+                                 (file-relative-name
+                                  buffer-file-name
+                                  default-directory)))
+                 :entryPoint "main"
+                 :entryArgs []
+                 :extraGhcArgs [])))
+
 (provide 'curry-mode)
 
 ;;; curry-mode.el ends here
