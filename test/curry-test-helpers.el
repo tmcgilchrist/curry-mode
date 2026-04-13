@@ -13,6 +13,10 @@
 (require 'buttercup)
 (require 'curry-mode)
 
+;; Ensure the grammar is installed before tests run, without prompting.
+(unless (treesit-language-available-p 'haskell)
+  (curry-install-grammars))
+
 ;;;; String helpers
 
 (defun curry-test--dedent (string)

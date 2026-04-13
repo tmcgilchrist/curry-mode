@@ -417,6 +417,20 @@ The return value is suitable for `treesit-simple-indent-rules'."
      ;; Error recovery
      ((parent-is "ERROR") parent-bol curry-indent-offset))))
 
+(defun curry-shift-region-right (start end &optional count)
+  "Shift the region between START and END right by COUNT indentation levels.
+COUNT defaults to 1.  With a negative prefix argument, shifts left."
+  (interactive "r\np")
+  (let ((offset (* (or count 1) curry-indent-offset)))
+    (indent-rigidly start end offset)))
+
+(defun curry-shift-region-left (start end &optional count)
+  "Shift the region between START and END left by COUNT indentation levels.
+COUNT defaults to 1.  With a negative prefix argument, shifts right."
+  (interactive "r\np")
+  (let ((offset (* (or count 1) (- curry-indent-offset))))
+    (indent-rigidly start end offset)))
+
 (defun curry-cycle-indent ()
   "Cycle between `treesit-indent' and `indent-relative' for indentation."
   (interactive)
@@ -742,6 +756,8 @@ Includes word symbols when `curry-prettify-words' is non-nil."
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-c C-a") #'ff-find-other-file)
     (define-key map (kbd "C-c C-c") #'compile)
+    (define-key map (kbd "C-c >") #'curry-shift-region-right)
+    (define-key map (kbd "C-c <") #'curry-shift-region-left)
     (easy-menu-define curry-mode-menu map "Curry Mode Menu"
       '("Haskell"
         ("Navigate"
@@ -753,8 +769,14 @@ Includes word symbols when `curry-prettify-words' is non-nil."
         ["Mark Definition" mark-defun]
         ["Mark Expression" mark-sexp]
         "--"
+        ["Shift Region Right" curry-shift-region-right
+         :active mark-active]
+        ["Shift Region Left" curry-shift-region-left
+         :active mark-active]
+        "--"
         ["Compile..." compile]
         ["Cycle indent function" curry-cycle-indent]
+        ["Guess indent offset" curry-guess-indent-offset]
         ["Install tree-sitter grammars" curry-install-grammars]))
     map)
   "Keymap for `curry-mode'.")
