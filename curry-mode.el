@@ -56,8 +56,8 @@
 
 (defcustom curry-guess-indent-offset t
   "When non-nil, automatically guess the indentation offset on file open.
-Uses `curry-guess-indent-offset-function' to scan the buffer and set
-`curry-indent-offset' to match the file's convention."
+Scans the buffer for the most common indentation step and sets
+`curry-indent-offset' buffer-locally to match the file's convention."
   :type 'boolean
   :safe #'booleanp
   :package-version '(curry-mode . "0.1.0"))
@@ -104,8 +104,8 @@ The word symbols may affect column alignment."
 (defconst curry-version "0.1.0")
 
 (defconst curry-grammar-recipes
-  '((haskell "https://github.com/tree-sitter/tree-sitter-haskell"
-             "v0.23.1"
+  '((haskell "https://github.com/tmcgilchrist/tree-sitter-haskell"
+             "curry-mode/tek-main-abi14"
              "src"))
   "Tree-sitter grammar recipe for Haskell.
 Each entry is a list of (LANGUAGE URL REV SOURCE-DIR).
@@ -144,7 +144,7 @@ version that requires a newer grammar."
     "throw" "throwIO" "throwTo" "throwError"
     "ioError" "mask" "mask_"
     "uninterruptibleMask" "uninterruptibleMask_"
-    "bracket" "bracket_" "bracketOnErrorSource"
+    "bracket" "bracket_" "bracketOnError"
     "finally" "fail" "onException"
     "trace" "traceId" "traceShow" "traceShowId"
     "traceWith" "traceShowWith" "traceStack"
@@ -474,7 +474,7 @@ Scans the buffer for the smallest common indentation step and sets
                 "signature"
                 "data_type"
                 "newtype"
-                "type_synomym"
+                "type_synonym"
                 "class"
                 "instance"
                 "deriving_instance"
@@ -510,7 +510,7 @@ Return nil if there is no name or if NODE is not a defun node."
      (curry--subtree-text node "name" 2))
     ("newtype"
      (curry--subtree-text node "name" 2))
-    ("type_synomym"
+    ("type_synonym"
      (curry--subtree-text node "name" 2))
     ("class"
      (curry--subtree-text node "name" 2))
@@ -541,7 +541,7 @@ Joins ancestor defun names with `treesit-add-log-defun-delimiter'."
 (defvar curry--imenu-settings
   `(("Function" "\\`\\(function\\|bind\\)\\'"
      curry--defun-valid-p curry--imenu-name)
-    ("Type" "\\`\\(data_type\\|newtype\\|type_synomym\\)\\'"
+    ("Type" "\\`\\(data_type\\|newtype\\|type_synonym\\)\\'"
      curry--defun-valid-p curry--imenu-name)
     ("Class" "\\`class\\'"
      curry--defun-valid-p curry--imenu-name)
@@ -556,7 +556,7 @@ Joins ancestor defun names with `treesit-add-log-defun-delimiter'."
 
 (defvar curry--block-regex
   (regexp-opt '("function" "bind" "signature"
-                "data_type" "newtype" "type_synomym"
+                "data_type" "newtype" "type_synonym"
                 "class" "instance"
                 "import"
                 "case" "alternative"
@@ -619,7 +619,7 @@ ARG is as in `forward-sexp-function'."
                           "record" "exports" "import_list")
                         'symbols))
      (sentence ,(regexp-opt '("function" "bind" "signature"
-                              "data_type" "newtype" "type_synomym"
+                              "data_type" "newtype" "type_synonym"
                               "class" "instance" "deriving_instance"
                               "import" "fixity"
                               "foreign_import" "foreign_export"
@@ -852,6 +852,10 @@ Called from `curry-mode' to configure the language-specific parts."
 This mode is not intended to be used directly.  Use `curry-mode'."
   :syntax-table curry-base-mode-syntax-table
 
+  ;; Haskell universally uses spaces, not tabs
+  (setq-local indent-tabs-mode nil)
+  (setq-local require-final-newline mode-require-final-newline)
+
   ;; Comment settings
   (setq-local comment-start "-- ")
   (setq-local comment-end "")
@@ -924,7 +928,9 @@ This mode is not intended to be used directly.  Use `curry-mode'."
 ;;;###autoload
 (progn
   (add-to-list 'auto-mode-alist '("\\.hs\\'" . curry-mode))
-  (add-to-list 'auto-mode-alist '("\\.lhs\\'" . curry-mode)))
+  (add-to-list 'auto-mode-alist '("\\.lhs\\'" . curry-mode))
+  (add-to-list 'auto-mode-alist '("\\.hsc\\'" . curry-mode))
+  (add-to-list 'auto-mode-alist '("\\.hs-boot\\'" . curry-mode)))
 
 ;; Hide Haskell build artifacts from find-file completion
 (dolist (ext '(".hi" ".o" ".dyn_hi" ".dyn_o"))

@@ -49,16 +49,19 @@
 Can also be set to \"cabal repl\" or \"stack ghci\" for
 project-aware REPL sessions."
   :type 'string
+  :group 'curry-repl
   :package-version '(curry-mode . "0.1.0"))
 
 (defcustom curry-repl-program-args nil
   "Command line arguments for `curry-repl-program-name'."
   :type '(repeat string)
+  :group 'curry-repl
   :package-version '(curry-mode . "0.1.0"))
 
 (defcustom curry-repl-buffer-name "*GHCi*"
   "Name of the GHCi REPL buffer."
   :type 'string
+  :group 'curry-repl
   :package-version '(curry-mode . "0.1.0"))
 
 (defcustom curry-repl-history-file
@@ -67,11 +70,13 @@ project-aware REPL sessions."
 Set to nil to disable history persistence."
   :type '(choice (file :tag "History file")
                  (const :tag "Disable" nil))
+  :group 'curry-repl
   :package-version '(curry-mode . "0.1.0"))
 
 (defcustom curry-repl-history-size 1000
   "Maximum number of input history entries to persist."
   :type 'integer
+  :group 'curry-repl
   :package-version '(curry-mode . "0.1.0"))
 
 (defcustom curry-repl-fontify-input t
@@ -82,6 +87,7 @@ output keeps its own highlighting.
 
 Set to nil to use only the basic REPL font-lock keywords for input."
   :type 'boolean
+  :group 'curry-repl
   :package-version '(curry-mode . "0.1.0"))
 
 (defconst curry-repl--prompt-regexp

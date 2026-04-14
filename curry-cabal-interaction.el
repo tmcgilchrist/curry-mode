@@ -46,6 +46,7 @@
   "The cabal executable."
   :type 'string
   :safe #'stringp
+  :group 'curry-cabal-interaction
   :package-version '(curry-mode . "0.1.0"))
 
 (defcustom curry-cabal-project-root-files '("cabal.project" "*.cabal")
@@ -53,6 +54,7 @@
 The first ancestor directory containing any matching file is used
 as the project root for cabal commands."
   :type '(repeat string)
+  :group 'curry-cabal-interaction
   :package-version '(curry-mode . "0.1.0"))
 
 ;;; Project root detection

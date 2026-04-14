@@ -1,5 +1,7 @@
 ;;; curry-font-lock-test.el --- Font-lock tests for curry-mode -*- lexical-binding: t; -*-
 
+;; Copyright (C) 2026 Tim McGilchrist
+
 ;;; Commentary:
 
 ;; Buttercup tests for curry-mode font-locking at all feature levels.

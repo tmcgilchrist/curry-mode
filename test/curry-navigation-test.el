@@ -1,5 +1,7 @@
 ;;; curry-navigation-test.el --- Navigation tests for curry-mode -*- lexical-binding: t; -*-
 
+;; Copyright (C) 2026 Tim McGilchrist
+
 ;;; Commentary:
 
 ;; Buttercup tests for curry-mode navigation and imenu.
