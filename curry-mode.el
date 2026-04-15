@@ -628,6 +628,15 @@ ARG is as in `forward-sexp-function'."
      (comment ,(regexp-opt '("comment" "haddock"))))))
 
 
+(defun curry-mark-sentence ()
+  "Mark the current statement around point.
+Uses tree-sitter sentence navigation to select the entire statement
+\(e.g. a function binding, type definition, or class declaration)."
+  (interactive)
+  (backward-sentence)
+  (push-mark (point) nil t)
+  (forward-sentence))
+
 ;;;; Compilation support
 
 (defvar curry--compilation-error-regexp
@@ -764,10 +773,13 @@ Includes word symbols when `curry-prettify-words' is non-nil."
          ["Beginning of Definition" beginning-of-defun]
          ["End of Definition" end-of-defun]
          ["Forward Expression" forward-sexp]
-         ["Backward Expression" backward-sexp])
+         ["Backward Expression" backward-sexp]
+         ["Forward Statement" forward-sentence]
+         ["Backward Statement" backward-sentence])
         "--"
         ["Mark Definition" mark-defun]
         ["Mark Expression" mark-sexp]
+        ["Mark Statement" curry-mark-sentence]
         "--"
         ["Shift Region Right" curry-shift-region-right
          :active mark-active]

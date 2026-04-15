@@ -13,9 +13,16 @@
 (require 'buttercup)
 (require 'curry-mode)
 
-;; Ensure the grammar is installed before tests run, without prompting.
-(unless (treesit-language-available-p 'haskell)
-  (curry-install-grammars))
+;; Ensure the correct grammar is installed before tests run.
+;; Verify by checking for a node type that only exists in the
+;; current grammar (type_synonym was type_synomym in older versions).
+(unless (and (treesit-language-available-p 'haskell)
+             (with-temp-buffer
+               (insert "type X = Int")
+               (treesit-parser-create 'haskell)
+               (treesit-search-subtree
+                (treesit-buffer-root-node) "type_synonym")))
+  (curry-install-grammars t))
 
 ;;;; String helpers
 
