@@ -113,6 +113,7 @@ are standard Emacs keybindings, backed by the AST rather than heuristics:
 | `M-a`      | `backward-sentence`  | Move to the previous top-level declaration (Emacs 30+)|
 | `M-e`      | `forward-sentence`   | Move to the next top-level declaration (Emacs 30+)    |
 
+<!-- TODO C-M-a / C-M-e jump around between data types fine but newtype or type they don't work -->
 "Definitions" include function bindings, type signatures, data types, newtypes,
 type synonyms, classes, instances, and imports. "Statements" (sentences) cover
 the same set, enabling `M-a`/`M-e` to jump between top-level declarations.
@@ -158,9 +159,63 @@ The font-lock features available at each level are:
 - `bracket` -- parentheses, brackets, braces
 - `delimiter` -- commas and semicolons
 
-<!-- TODO: Document selecting individual features via treesit-font-lock-recompute-features -->
-<!-- TODO: Document customizing faces with face-remap-add-relative -->
-<!-- TODO: Document adding custom font-lock rules via hooks -->
+#### Selecting features
+
+You don't have to use the level system. If you want fine-grained control over
+what gets highlighted, cherry-pick individual features using
+`treesit-font-lock-recompute-features`:
+
+```emacs-lisp
+(defun my-curry-font-lock-setup ()
+  (treesit-font-lock-recompute-features
+   ;; enable these features
+   '(comment definition keyword string number
+     type constructor module
+     operator variable function)
+   ;; disable these features
+   '(bracket delimiter)))
+
+(add-hook 'curry-base-mode-hook #'my-curry-font-lock-setup)
+```
+
+#### Customizing faces
+
+The faces used are standard `font-lock-*-face` faces, so any theme applies
+automatically. For buffer-local customization (only affects Haskell buffers):
+
+```emacs-lisp
+(add-hook 'curry-base-mode-hook
+  (lambda ()
+    (face-remap-add-relative 'font-lock-type-face
+                             :foreground "DarkSeaGreen4")))
+```
+
+#### Adding custom font-lock rules
+
+For distinctions that curry-mode doesn't make by default, layer additional
+tree-sitter font-lock rules via a hook:
+
+```emacs-lisp
+(defface my-haskell-keyword-face
+  '((t :inherit font-lock-keyword-face :weight bold))
+  "Face for certain Haskell keywords.")
+
+(defun my-curry-extra-keywords ()
+  (setq treesit-font-lock-settings
+        (append treesit-font-lock-settings
+                (treesit-font-lock-rules
+                 :language 'haskell
+                 :override t
+                 :feature 'keyword
+                 '(["where" "let" "in" "do"]
+                   @my-haskell-keyword-face))))
+  (treesit-font-lock-recompute-features))
+
+(add-hook 'curry-base-mode-hook #'my-curry-extra-keywords)
+```
+
+Use `M-x treesit-explore-mode` to inspect the syntax tree and find the right
+node types to match.
 
 #### Prettify Symbols
 
@@ -254,7 +309,16 @@ hook:
 (add-hook 'curry-base-mode-hook #'outline-minor-mode)
 ```
 
-<!-- TODO: Add treesit-fold integration for folding any tree-sitter node -->
+For tree-sitter-aware code folding (fold any node, not just top-level
+definitions), [treesit-fold](https://github.com/emacs-tree-sitter/treesit-fold)
+is supported out of the box. curry-mode automatically registers with
+treesit-fold's Haskell fold definitions when the package is loaded:
+
+```emacs-lisp
+(use-package treesit-fold
+  :ensure t
+  :hook (curry-base-mode . treesit-fold-mode))
+```
 
 ### Structural Selection
 

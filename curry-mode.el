@@ -975,6 +975,16 @@ This mode is not intended to be used directly.  Use `curry-mode'."
                  :entryArgs []
                  :extraGhcArgs [])))
 
+;; treesit-fold integration for code folding.
+;; Registers curry-mode with the Haskell fold definitions when
+;; treesit-fold is loaded.
+(with-eval-after-load 'treesit-fold
+  (defvar treesit-fold-range-alist)
+  (declare-function treesit-fold-parsers-haskell "treesit-fold")
+  (unless (alist-get 'curry-mode treesit-fold-range-alist)
+    (push `(curry-mode . ,(treesit-fold-parsers-haskell))
+          treesit-fold-range-alist)))
+
 (provide 'curry-mode)
 
 ;;; curry-mode.el ends here
