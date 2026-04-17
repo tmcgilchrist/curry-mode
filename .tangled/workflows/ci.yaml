@@ -8,31 +8,24 @@ engine: "nixery"
 dependencies:
   nixpkgs:
     - emacs30
+    - eldev
 
 steps:
-  - name: "Install Eldev"
+  - name: "Show versions"
     command: |
-      curl -fsSL https://raw.github.com/emacs-eldev/eldev/master/webinstall/eldev | sh
-      export PATH="$HOME/.local/bin:$PATH"
+      emacs --version
       eldev --version
 
   - name: "Install tree-sitter grammars"
     command: |
-      export PATH="$HOME/.local/bin:$PATH"
       eldev eval '(curry-install-grammars)'
       eldev eval '(progn (load "curry-cabal-mode") (curry-cabal-install-grammar))'
 
   - name: "Byte-compile"
-    command: |
-      export PATH="$HOME/.local/bin:$PATH"
-      eldev byte-compile --warnings-as-errors
+    command: eldev byte-compile --warnings-as-errors
 
   - name: "Test"
-    command: |
-      export PATH="$HOME/.local/bin:$PATH"
-      eldev test
+    command: eldev test
 
   - name: "Lint"
-    command: |
-      export PATH="$HOME/.local/bin:$PATH"
-      eldev lint
+    command: eldev lint
