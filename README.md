@@ -1,7 +1,5 @@
 # curry-mode
 
-[![CI](https://github.com/tmcgilchrist/curry-mode/actions/workflows/ci.yml/badge.svg)](https://github.com/tmcgilchrist/curry-mode/actions/workflows/ci.yml)
-
 `curry-mode` is a modern, tree-sitter-powered Emacs major mode for Haskell. It
 provides font-lock, indentation, navigation, imenu, GHCi REPL integration, and
 Cabal build commands. Delegating all semantic features (completion,
