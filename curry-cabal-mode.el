@@ -4,7 +4,7 @@
 ;;
 ;; Author: Tim McGilchrist <timmcgil@gmail.com>
 ;; Maintainer: Tim McGilchrist <timmcgil@gmail.com>
-;; URL: https://github.com/tmcgilchrist/curry-mode
+;; URL: https://tangled.org/tsmc.purely-functional.com/curry-mode
 ;; Keywords: languages haskell cabal
 
 ;; This file is not part of GNU Emacs.
@@ -40,7 +40,7 @@
   "Major mode for editing Cabal files with tree-sitter."
   :prefix "curry-cabal-"
   :group 'languages
-  :link '(url-link :tag "GitHub" "https://github.com/tmcgilchrist/curry-mode"))
+  :link '(url-link :tag "Tangled" "https://tangled.org/tsmc.purely-functional.com/curry-mode"))
 
 (defcustom curry-cabal-indent-offset 2
   "Number of spaces for each indentation step in `curry-cabal-mode'.

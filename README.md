@@ -551,6 +551,6 @@ tree-sitter mode with semantic features delegated to the language server.
 
 ## License
 
-Copyright (c) 2026 Tim McGilchrist and [contributors](https://github.com/tmcgilchrist/curry-mode/graphs/contributors).
+Copyright (c) 2026 Tim McGilchrist and [contributors](https://tangled.org/tsmc.purely-functional.com/curry-mode).
 
 Distributed under the GNU General Public License, version 3 or later.

@@ -1,5 +1,5 @@
 ((nil
-  (bug-reference-url-format . "https://github.com/tmcgilchrist/curry-mode/issues/%s")
+  (bug-reference-url-format . "https://tangled.org/tsmc.purely-functional.com/curry-mode/issues/%s")
   (indent-tabs-mode . nil)
   (fill-column . 80)
   (checkdoc-arguments-in-order-flag))
