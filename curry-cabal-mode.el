@@ -95,7 +95,7 @@ buffer text with the formatted output, preserving point."
                 (insert-buffer-substring outbuf)
                 (goto-char (min orig-point (point-max)))
                 (set-window-start (selected-window) orig-window-start))
-            (user-error "cabal-fmt failed: %s"
+            (user-error "Running cabal-fmt failed: %s"
                         (with-current-buffer outbuf
                           (string-trim (buffer-string))))))
       (kill-buffer outbuf))))

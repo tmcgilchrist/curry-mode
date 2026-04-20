@@ -653,12 +653,12 @@ Suitable for `compilation-error-regexp-alist-alist'.")
 
 (defun curry--setup-compilation ()
   "Register GHC error regexp with `compilation-mode'."
-  (with-eval-after-load 'compile
-    (defvar compilation-error-regexp-alist-alist)
-    (defvar compilation-error-regexp-alist)
-    (add-to-list 'compilation-error-regexp-alist-alist
-                 (cons 'ghc curry--compilation-error-regexp))
-    (add-to-list 'compilation-error-regexp-alist 'ghc)))
+  (require 'compile)
+  (defvar compilation-error-regexp-alist-alist)
+  (defvar compilation-error-regexp-alist)
+  (add-to-list 'compilation-error-regexp-alist-alist
+               (cons 'ghc curry--compilation-error-regexp))
+  (add-to-list 'compilation-error-regexp-alist 'ghc))
 
 
 ;;;; Fill paragraph
@@ -954,10 +954,14 @@ This mode is not intended to be used directly.  Use `curry-mode'."
 ;; Eglot language ID
 (put 'curry-mode 'eglot-language-id "haskell")
 
-;; Dape (DAP debugger) integration for haskell-debugger (hdb).
-;; Requires GHC 9.14+ and hdb: cabal install haskell-debugger
-;; See https://well-typed.com/blog/2026/01/haskell-debugger/
-(with-eval-after-load 'dape
+;;;###autoload
+(defun curry-mode-dape-setup ()
+  "Register haskell-debugger (hdb) with Dape for `curry-mode'.
+Requires GHC 9.14+ and hdb: cabal install haskell-debugger.
+See URL `https://well-typed.com/blog/2026/01/haskell-debugger/'.
+
+Call from your init after loading `dape', e.g.:
+  (with-eval-after-load \\='dape (curry-mode-dape-setup))"
   (defvar dape-configs)
   (add-to-list 'dape-configs
                `(haskell-debugger
@@ -975,10 +979,12 @@ This mode is not intended to be used directly.  Use `curry-mode'."
                  :entryArgs []
                  :extraGhcArgs [])))
 
-;; treesit-fold integration for code folding.
-;; Registers curry-mode with the Haskell fold definitions when
-;; treesit-fold is loaded.
-(with-eval-after-load 'treesit-fold
+;;;###autoload
+(defun curry-mode-treesit-fold-setup ()
+  "Register `curry-mode' with `treesit-fold' using Haskell fold definitions.
+
+Call from your init after loading `treesit-fold', e.g.:
+  (with-eval-after-load \\='treesit-fold (curry-mode-treesit-fold-setup))"
   (defvar treesit-fold-range-alist)
   (declare-function treesit-fold-parsers-haskell "treesit-fold")
   (unless (alist-get 'curry-mode treesit-fold-range-alist)

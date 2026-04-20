@@ -309,13 +309,14 @@ hook:
 
 For tree-sitter-aware code folding (fold any node, not just top-level
 definitions), [treesit-fold](https://github.com/emacs-tree-sitter/treesit-fold)
-is supported out of the box. curry-mode automatically registers with
-treesit-fold's Haskell fold definitions when the package is loaded:
+is supported via `curry-mode-treesit-fold-setup`, which registers `curry-mode`
+with treesit-fold's Haskell fold definitions:
 
 ```emacs-lisp
 (use-package treesit-fold
   :ensure t
-  :hook (curry-base-mode . treesit-fold-mode))
+  :hook (curry-base-mode . treesit-fold-mode)
+  :config (curry-mode-treesit-fold-setup))
 ```
 
 ### Structural Selection
@@ -434,8 +435,8 @@ The project root is determined by walking up from the current file to find
 curry-mode integrates with [dape](https://github.com/svaante/dape) (a DAP
 client, available from GNU ELPA) and
 [haskell-debugger](https://github.com/well-typed/haskell-debugger) (`hdb`) for
-step-through debugging. When dape is loaded, curry-mode automatically registers
-the `haskell-debugger` configuration.
+step-through debugging. Call `curry-mode-dape-setup` after dape is loaded to
+register the `haskell-debugger` configuration.
 
 **This is experimental and requires GHC 9.14+.**
 
@@ -450,6 +451,21 @@ the `haskell-debugger` configuration.
    ```
 
 2. Install dape from GNU ELPA (`M-x package-install RET dape RET`).
+
+3. Register the `haskell-debugger` configuration by calling
+   `curry-mode-dape-setup` after dape is loaded:
+
+   ```emacs-lisp
+   (with-eval-after-load 'dape
+     (curry-mode-dape-setup))
+   ```
+
+   Or with `use-package`:
+
+   ```emacs-lisp
+   (use-package dape
+     :config (curry-mode-dape-setup))
+   ```
 
 ### Usage
 
