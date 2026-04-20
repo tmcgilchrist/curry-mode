@@ -40,31 +40,11 @@ server.
 
 ### From source
 
+Requires Emacs 29.1+ (for `:vc` support in `use-package`).
+
 ```emacs-lisp
 (use-package curry-mode
-  :ensure nil
-  :load-path "~/code/elisp/curry-mode"
-  :mode ("\\.hs\\'" "\\.lhs\\'" "\\.hsc\\'" "\\.hs-boot\\'")
-  :config
-  (with-eval-after-load 'eglot
-    (add-to-list 'eglot-server-programs
-                 '((curry-mode :language-id "haskell")
-                   "haskell-language-server-wrapper" "--lsp"))))
-
-(use-package curry-cabal-mode
-  :ensure nil
-  :load-path "~/code/elisp/curry-mode"
-  :mode "\\.cabal\\'")
-
-(use-package curry-cabal-interaction
-  :ensure nil
-  :load-path "~/code/elisp/curry-mode"
-  :defer t)
-
-(use-package curry-repl
-  :ensure nil
-  :load-path "~/code/elisp/curry-mode"
-  :defer t)
+  :vc (:url "https://tangled.org/tsmc.purely-functional.com/curry-mode" :rev :newest))
 ```
 
 ### Grammar
