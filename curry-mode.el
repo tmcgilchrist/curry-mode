@@ -894,7 +894,14 @@ Called from `curry-mode' to configure the language-specific parts."
     ;; Hybrid forward-sexp for Emacs 29-30
     (unless (fboundp 'treesit-forward-sexp-list)
       (setq-local forward-sexp-function
-                  #'curry--forward-sexp-hybrid))))
+                  #'curry--forward-sexp-hybrid))
+
+    ;; Workaround for treesit-transpose-sexps being broken on Emacs 30
+    ;; (bug#60655).  Emacs 31 rewrites the function to work correctly.
+    (when (and (fboundp 'transpose-sexps-default-function)
+               (< emacs-major-version 31))
+      (setq-local transpose-sexps-function
+                  #'transpose-sexps-default-function))))
 
 (defun curry--register-with-eglot ()
   "Register curry-mode with eglot if loaded."
