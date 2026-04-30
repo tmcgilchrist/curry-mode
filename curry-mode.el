@@ -765,6 +765,44 @@ Includes word symbols when `curry-prettify-words' is non-nil."
               curry-prettify-words-alist)
     curry-prettify-symbols-alist))
 
+;;;; Utility commands
+
+(defconst curry-report-bug-url "https://github.com/tmcgilchrist/curry-mode/issues/new"
+  "The URL to report a `curry-mode' issue.")
+
+(defun curry--grammar-info (language)
+  "Return a string describing the status of the LANGUAGE grammar."
+  (if (treesit-language-available-p language)
+      (let ((recipe (assq language curry-grammar-recipes))
+            (abi (treesit-language-abi-version language)))
+        (format "%s (ABI %s, expected: %s)" language abi (or (nth 2 recipe) "unknown")))
+    (format "%s (not installed)" language)))
+
+(defun curry-bug-report-info ()
+  "Display debug information for bug reports.
+The information is also copied to the kill ring."
+  (interactive)
+  (let* ((info (format (concat "Emacs: %s\n"
+                               "System: %s\n"
+                               "curry-mode: %s\n"
+                               "Tree-sitter ABI: %s\n"
+                               "Grammar: %s\n"
+                               "Eglot: %s")
+                       emacs-version
+                       system-type
+                       curry-version
+                       (treesit-library-abi-version)
+                       (curry--grammar-info 'haskell)
+                       (if (bound-and-true-p eglot--managed-mode) "active" "inactive"))))
+    (kill-new info)
+    (message "%s\n(copied to kill ring)" info)))
+
+(defun curry-report-bug ()
+  "Report a bug in your default browser."
+  (interactive)
+  (curry-bug-report-info)
+  (browse-url curry-report-bug-url))
+
 ;;;; Major mode definitions
 
 (defvar curry-base-mode-map
