@@ -109,6 +109,19 @@ The word symbols may affect column alignment."
 
 (defconst curry-version "0.1.0")
 
+(defun curry-version ()
+  "Display the current package version in the minibuffer.
+Fallback to `curry-version' when the package version is missing.
+When called from other Elisp code returns the version instead of
+displaying it."
+  (interactive)
+  (let ((pkg-version (package-get-version)))
+    (if (called-interactively-p 'interactively)
+        (if pkg-version
+            (message "curry-mode %s (package: %s)" curry-version pkg-version)
+          (message "curry-mode %s" curry-version))
+      (or pkg-version curry-version))))
+
 (defconst curry-grammar-recipes
   '((haskell "https://github.com/tmcgilchrist/tree-sitter-haskell"
              "curry-mode/tek-main-abi14"
