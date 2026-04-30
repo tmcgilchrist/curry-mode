@@ -52,6 +52,7 @@
   "Number of spaces for each indentation step."
   :type 'natnum
   :safe 'natnump
+  :group 'curry
   :package-version '(curry-mode . "0.1.0"))
 
 (defcustom curry-guess-indent-offset t
@@ -60,6 +61,7 @@ Scans the buffer for the most common indentation step and sets
 `curry-indent-offset' buffer-locally to match the file's convention."
   :type 'boolean
   :safe #'booleanp
+  :group 'curry
   :package-version '(curry-mode . "0.1.0"))
 
 (defcustom curry-other-file-alist
@@ -68,6 +70,7 @@ Scans the buffer for the most common indentation step and sets
   "Associative list of alternate extensions to find.
 See `ff-other-file-alist' and `ff-find-other-file'."
   :type '(repeat (list regexp (choice (repeat string) function)))
+  :group 'curry
   :package-version '(curry-mode . "0.1.0"))
 
 (defcustom curry-prettify-symbols-alist
@@ -84,6 +87,7 @@ See `ff-other-file-alist' and `ff-find-other-file'."
   "Prettify symbols alist for Haskell operators.
 Active when `prettify-symbols-mode' is enabled."
   :type '(alist :key-type string :value-type character)
+  :group 'curry
   :package-version '(curry-mode . "0.1.0"))
 
 (defcustom curry-prettify-words-alist
@@ -93,12 +97,14 @@ Active when `prettify-symbols-mode' is enabled."
 Active when `curry-prettify-words' and `prettify-symbols-mode'
 are both enabled.  These may affect column alignment."
   :type '(alist :key-type string :value-type character)
+  :group 'curry
   :package-version '(curry-mode . "0.1.0"))
 
 (defcustom curry-prettify-words nil
   "When non-nil, include `curry-prettify-words-alist'.
 The word symbols may affect column alignment."
   :type 'boolean
+  :group 'curry
   :package-version '(curry-mode . "0.1.0"))
 
 (defconst curry-version "0.1.0")
@@ -859,6 +865,11 @@ Called from `curry-mode' to configure the language-specific parts."
                  '((curry-mode :language-id "haskell")
                    "haskell-language-server-wrapper" "--lsp"))))
 
+;; Register at load time so the entry exists before any curry-mode
+;; buffer asks eglot to start.  Deferred until eglot itself loads.
+(with-eval-after-load 'eglot
+  (curry--register-with-eglot))
+
 (define-derived-mode curry-base-mode prog-mode "Haskell"
   "Base major mode for Haskell files, providing shared setup.
 This mode is not intended to be used directly.  Use `curry-mode'."
@@ -919,10 +930,7 @@ This mode is not intended to be used directly.  Use `curry-mode'."
   (setq-local ff-other-file-alist curry-other-file-alist)
 
   ;; Prettify symbols (users enable prettify-symbols-mode via hooks)
-  (setq-local prettify-symbols-alist (curry--prettify-symbols-alist))
-
-  ;; Eglot integration
-  (curry--register-with-eglot))
+  (setq-local prettify-symbols-alist (curry--prettify-symbols-alist)))
 
 ;;;###autoload
 (define-derived-mode curry-mode curry-base-mode "Haskell"
