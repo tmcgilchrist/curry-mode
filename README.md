@@ -44,7 +44,7 @@ Requires Emacs 29.1+ (for `:vc` support in `use-package`).
 
 ```emacs-lisp
 (use-package curry-mode
-  :vc (:url "https://tangled.org/tsmc.purely-functional.com/curry-mode" :rev :newest))
+  :vc (:url "https://github.com/tmcgilchrist/curry-mode" :rev :newest))
 ```
 
 ### Grammar
@@ -547,6 +547,6 @@ tree-sitter mode with semantic features delegated to the language server.
 
 ## License
 
-Copyright (c) 2026 Tim McGilchrist and [contributors](https://tangled.org/tsmc.purely-functional.com/curry-mode).
+Copyright (c) 2026 Tim McGilchrist and [contributors](https://github.com/tmcgilchrist/curry-mode).
 
 Distributed under the GNU General Public License, version 3 or later.
