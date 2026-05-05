@@ -4,7 +4,7 @@
 ;;
 ;; Author: Tim McGilchrist <timmcgil@gmail.com>
 ;; Maintainer: Tim McGilchrist <timmcgil@gmail.com>
-;; URL: https://tangled.org/tsmc.purely-functional.com/curry-mode
+;; URL: https://github.com/tmcgilchrist/curry-mode
 ;; Keywords: languages haskell cabal
 
 ;; This file is not part of GNU Emacs.
@@ -40,7 +40,7 @@
   "Cabal build system interaction for curry-mode."
   :prefix "curry-cabal-interaction-"
   :group 'curry
-  :link '(url-link :tag "Tangled" "https://tangled.org/tsmc.purely-functional.com/curry-mode"))
+  :link '(url-link :tag "GitHub" "https://github.com/tmcgilchrist/curry-mode"))
 
 (defcustom curry-cabal-program "cabal"
   "The cabal executable."

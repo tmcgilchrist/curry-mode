@@ -4,7 +4,7 @@
 ;;
 ;; Author: Tim McGilchrist <timmcgil@gmail.com>
 ;; Maintainer: Tim McGilchrist <timmcgil@gmail.com>
-;; URL: https://tangled.org/tsmc.purely-functional.com/curry-mode
+;; URL: https://github.com/tmcgilchrist/curry-mode
 ;; Keywords: languages haskell
 
 ;; This file is not part of GNU Emacs.

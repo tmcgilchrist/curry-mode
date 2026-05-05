@@ -4,7 +4,7 @@
 ;;
 ;; Author: Tim McGilchrist <timmcgil@gmail.com>
 ;; Maintainer: Tim McGilchrist <timmcgil@gmail.com>
-;; URL: https://tangled.org/tsmc.purely-functional.com/curry-mode
+;; URL: https://github.com/tmcgilchrist/curry-mode
 ;; Keywords: languages haskell
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "29.1"))
@@ -45,7 +45,7 @@
   "Major mode for editing Haskell code with tree-sitter."
   :prefix "curry-"
   :group 'languages
-  :link '(url-link :tag "Tangled" "https://tangled.org/tsmc.purely-functional.com/curry-mode")
+  :link '(url-link :tag "GitHub" "https://github.com/tmcgilchrist/curry-mode")
   :link '(emacs-commentary-link :tag "Commentary" "curry-mode"))
 
 (defcustom curry-indent-offset 2
