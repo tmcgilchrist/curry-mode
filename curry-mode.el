@@ -656,6 +656,45 @@ Uses tree-sitter sentence navigation to select the entire statement
   (push-mark (point) nil t)
   (forward-sentence))
 
+(defvar-local curry--imports-jump-marker nil
+  "Marker holding the position to return to from `curry-jump-to-imports'.")
+
+(defun curry--first-import-node ()
+  "Return the first top-level `import' node, or nil."
+  (when (treesit-parser-list)
+    (seq-find (lambda (n) (string= "import" (treesit-node-type n)))
+              (treesit-node-children (treesit-buffer-root-node 'haskell)))))
+
+(defun curry--inside-import-p ()
+  "Return non-nil if point is inside an `import' node."
+  (when-let* ((node (treesit-node-at (point) 'haskell)))
+    (treesit-parent-until
+     node
+     (lambda (n) (string= "import" (treesit-node-type n)))
+     t)))
+
+(defun curry-jump-to-imports ()
+  "Jump to the first `import' declaration in the buffer.
+If point is already inside an import, return to the position
+held before the previous jump."
+  (interactive)
+  (cond
+   ((and (curry--inside-import-p)
+         curry--imports-jump-marker
+         (marker-buffer curry--imports-jump-marker))
+    (let ((target (marker-position curry--imports-jump-marker)))
+      (set-marker curry--imports-jump-marker nil)
+      (setq curry--imports-jump-marker nil)
+      (goto-char target)))
+   (t
+    (let ((node (curry--first-import-node)))
+      (if node
+          (progn
+            (setq curry--imports-jump-marker (point-marker))
+            (push-mark (point) t)
+            (goto-char (treesit-node-start node)))
+        (user-error "No imports found"))))))
+
 ;;;; Compilation support
 
 (defvar curry--compilation-error-regexp
@@ -822,6 +861,7 @@ The information is also copied to the kill ring."
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-c C-a") #'ff-find-other-file)
     (define-key map (kbd "C-c C-c") #'compile)
+    (define-key map (kbd "M-g i") #'curry-jump-to-imports)
     (define-key map (kbd "C-c >") #'curry-shift-region-right)
     (define-key map (kbd "C-c <") #'curry-shift-region-left)
     (easy-menu-define curry-mode-menu map "Curry Mode Menu"
@@ -832,7 +872,8 @@ The information is also copied to the kill ring."
          ["Forward Expression" forward-sexp]
          ["Backward Expression" backward-sexp]
          ["Forward Statement" forward-sentence]
-         ["Backward Statement" backward-sentence])
+         ["Backward Statement" backward-sentence]
+         ["Jump to Imports" curry-jump-to-imports])
         "--"
         ["Mark Definition" mark-defun]
         ["Mark Expression" mark-sexp]
@@ -914,7 +955,9 @@ Called from `curry-mode' to configure the language-specific parts."
     (when (and (fboundp 'transpose-sexps-default-function)
                (< emacs-major-version 31))
       (setq-local transpose-sexps-function
-                  #'transpose-sexps-default-function))))
+                  #'transpose-sexps-default-function))
+
+    (curry--register-with-eglot)))
 
 (defun curry--register-with-eglot ()
   "Register curry-mode with eglot if loaded."
@@ -922,11 +965,6 @@ Called from `curry-mode' to configure the language-specific parts."
     (add-to-list 'eglot-server-programs
                  '((curry-mode :language-id "haskell")
                    "haskell-language-server-wrapper" "--lsp"))))
-
-;; Register at load time so the entry exists before any curry-mode
-;; buffer asks eglot to start.  Deferred until eglot itself loads.
-(with-eval-after-load 'eglot
-  (curry--register-with-eglot))
 
 (define-derived-mode curry-base-mode prog-mode "Haskell"
   "Base major mode for Haskell files, providing shared setup.

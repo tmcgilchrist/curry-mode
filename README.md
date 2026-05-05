@@ -90,6 +90,7 @@ are standard Emacs keybindings, backed by the AST rather than heuristics:
 | `C-M-b`    | `backward-sexp`      | Move backward over a balanced expression              |
 | `M-a`      | `backward-sentence`  | Move to the previous top-level declaration (Emacs 30+)|
 | `M-e`      | `forward-sentence`   | Move to the next top-level declaration (Emacs 30+)    |
+| `M-g i`    | `curry-jump-to-imports` | Jump to the import block; toggle back on second invocation |
 
 <!-- TODO C-M-a / C-M-e jump around between data types fine but newtype or type they don't work -->
 "Definitions" include function bindings, type signatures, data types, newtypes,
