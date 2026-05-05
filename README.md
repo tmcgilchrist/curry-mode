@@ -82,14 +82,14 @@ directly to the source locations reported by the compiler.
 curry-mode uses tree-sitter to power all structural navigation commands. These
 are standard Emacs keybindings, backed by the AST rather than heuristics:
 
-| Keybinding | Command              | Description                                           |
-|------------|----------------------|-------------------------------------------------------|
-| `C-M-a`    | `beginning-of-defun` | Move to the beginning of the current definition       |
-| `C-M-e`    | `end-of-defun`       | Move to the end of the current definition             |
-| `C-M-f`    | `forward-sexp`       | Move forward over a balanced expression               |
-| `C-M-b`    | `backward-sexp`      | Move backward over a balanced expression              |
-| `M-a`      | `backward-sentence`  | Move to the previous top-level declaration (Emacs 30+)|
-| `M-e`      | `forward-sentence`   | Move to the next top-level declaration (Emacs 30+)    |
+| Keybinding | Command                 | Description                                                |
+|------------|-------------------------|------------------------------------------------------------|
+| `C-M-a`    | `beginning-of-defun`    | Move to the beginning of the current definition            |
+| `C-M-e`    | `end-of-defun`          | Move to the end of the current definition                  |
+| `C-M-f`    | `forward-sexp`          | Move forward over a balanced expression                    |
+| `C-M-b`    | `backward-sexp`         | Move backward over a balanced expression                   |
+| `M-a`      | `backward-sentence`     | Move to the previous top-level declaration (Emacs 30+)     |
+| `M-e`      | `forward-sentence`      | Move to the next top-level declaration (Emacs 30+)         |
 | `M-g i`    | `curry-jump-to-imports` | Jump to the import block; toggle back on second invocation |
 
 <!-- TODO C-M-a / C-M-e jump around between data types fine but newtype or type they don't work -->
@@ -255,8 +255,8 @@ For manual indentation adjustment in layout-sensitive code:
 
 | Keybinding | Command                    | Description                       |
 |------------|----------------------------|-----------------------------------|
-| `C-c >`    | `curry-shift-region-right`  | Indent region by one offset level |
-| `C-c <`    | `curry-shift-region-left`   | Dedent region by one offset level |
+| `C-c >`    | `curry-shift-region-right` | Indent region by one offset level |
+| `C-c <`    | `curry-shift-region-left`  | Dedent region by one offset level |
 
 #### Cycle indent
 
@@ -362,6 +362,19 @@ regular `.hs` buffers. To disable this:
 ```
 
 ## Cabal Support
+
+### Grammar
+
+`curry-cabal-mode` uses a fork of the
+[magus/tree-sitter-cabal](https://gitlab.com/magus/tree-sitter-cabal) grammar,
+maintained at
+[tmcgilchrist/tree-sitter-cabal](https://gitlab.com/tmcgilchrist/tree-sitter-cabal).
+The grammar is installed automatically the first time you open a `.cabal`
+file, or manually via:
+
+```
+M-x curry-cabal-install-grammar
+```
 
 ### Cabal File Editing
 
