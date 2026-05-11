@@ -3,6 +3,7 @@
 ;; Copyright (C) 2026 Tim McGilchrist
 ;;
 ;; Author: Tim McGilchrist <timmcgil@gmail.com>
+;;         Bozhidar Batsov <bozhidar@batsov.dev>
 ;; Maintainer: Tim McGilchrist <timmcgil@gmail.com>
 ;; URL: https://github.com/tmcgilchrist/curry-mode
 ;; Keywords: languages haskell
