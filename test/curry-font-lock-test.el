@@ -11,6 +11,8 @@
 (require 'curry-test-helpers)
 
 (describe "curry-mode font-lock"
+  (before-all
+    (curry-test-skip-unless-grammar))
 
   (describe "level 1: comments and definitions"
 
