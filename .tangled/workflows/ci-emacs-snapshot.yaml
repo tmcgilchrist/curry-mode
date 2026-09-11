@@ -2,8 +2,9 @@
 #
 # Spindle has no matrix support, so each Emacs version gets its own
 # workflow file; they run as separate workflows of the same pipeline.
-# Keep ci-emacs-30.yaml, ci-emacs-31.yaml and ci-emacs-snapshot.yaml in
-# sync: they should differ only in how Emacs is installed.
+# Keep ci-emacs-29.yaml, ci-emacs-30.yaml, ci-emacs-31.yaml and
+# ci-emacs-snapshot.yaml in sync: they should differ only in how Emacs
+# is installed.
 
 when:
   - event: ["push", "manual"]
@@ -27,7 +28,7 @@ dependencies:
     - gcc # treesit-install-language-grammar compiles the grammars
 
 steps:
-  # Unlike the other two legs, the snapshot cannot be a `dependencies'
+  # Unlike the pinned legs, the snapshot cannot be a `dependencies'
   # entry: emacs-git only exists prebuilt in the nix-community cache, and
   # the install step spindle generates for us cannot be told to trust it.
   # Without the cache this builds Emacs from source and times out.
