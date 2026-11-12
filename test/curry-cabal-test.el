@@ -415,6 +415,52 @@ library
         (expect (buffer-substring-no-properties (point) (line-end-position))
                 :to-equal "executable my-exe")))))
 
+(describe "curry-cabal-mode formatting"
+  ;; These run standard Unix tools in place of a real formatter, so they
+  ;; exercise the plumbing without needing cabal-fmt or cabal-gild.
+  (before-all
+    (curry-test-skip-unless-grammar 'cabal))
+
+  (it "replaces the buffer with the command's output"
+    (let ((curry-cabal-format-command '("tr" "a-z" "A-Z")))
+      (with-curry-cabal-buffer "
+        cabal-version: 2.4
+        name: my-package"
+        (curry-cabal-format-buffer)
+        (expect (buffer-string)
+                :to-equal "CABAL-VERSION: 2.4\nNAME: MY-PACKAGE"))))
+
+  (it "keeps point where it was"
+    (let ((curry-cabal-format-command '("cat")))
+      (with-curry-cabal-buffer "
+        cabal-version: 2.4
+        name: my-package"
+        (goto-char 5)
+        (curry-cabal-format-buffer)
+        (expect (point) :to-equal 5))))
+
+  (it "leaves the buffer alone and reports output when the command fails"
+    (let ((curry-cabal-format-command
+           '("sh" "-c" "cat >/dev/null; echo bad field >&2; exit 1")))
+      (with-curry-cabal-buffer "
+        cabal-version: 2.4
+        name: my-package"
+        (let ((before (buffer-string)))
+          (expect (curry-cabal-format-buffer)
+                  :to-throw 'user-error '("Formatting with sh failed: bad field"))
+          (expect (buffer-string) :to-equal before)))))
+
+  (it "names the missing program when it is not installed"
+    (let ((curry-cabal-format-command '("curry-no-such-formatter")))
+      (with-curry-cabal-buffer "
+        cabal-version: 2.4
+        name: my-package"
+        (expect (condition-case err
+                    (progn (curry-cabal-format-buffer) nil)
+                  (user-error (cadr err)))
+                :to-match
+                "\\`Cannot format: curry-no-such-formatter is not installed")))))
+
 (provide 'curry-cabal-test)
 
 ;;; curry-cabal-test.el ends here

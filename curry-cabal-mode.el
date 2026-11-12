@@ -50,8 +50,26 @@ Cabal files conventionally use 2-space indentation."
   :group 'curry-cabal
   :package-version '(curry-mode . "0.1.0"))
 
+(defcustom curry-cabal-format-command '("cabal-fmt")
+  "Command used by `curry-cabal-format-buffer', as (PROGRAM ARGS...).
+The command must read a Cabal file on standard input and write the
+formatted file to standard output.  cabal-fmt and cabal-gild both do
+so when given no file argument.
+
+haskell-language-server can also format Cabal files, defaulting to
+cabal-gild, but it runs the same executables, so it still needs one
+of them on the PATH."
+  :type '(choice (const :tag "cabal-fmt" ("cabal-fmt"))
+                 (const :tag "cabal-gild" ("cabal-gild"))
+                 (cons :tag "Other command"
+                       (string :tag "Program")
+                       (repeat :tag "Arguments" string)))
+  :group 'curry-cabal
+  :package-version '(curry-mode . "0.1.0"))
+
 (defcustom curry-cabal-format-on-save nil
-  "When non-nil, format the buffer with `cabal-fmt' before saving."
+  "When non-nil, format the buffer before saving.
+Formatting uses `curry-cabal-format-command'."
   :type 'boolean
   :safe #'booleanp
   :group 'curry-cabal
@@ -79,26 +97,32 @@ With prefix argument FORCE, reinstall even if already installed."
 ;;; Formatting
 
 (defun curry-cabal-format-buffer ()
-  "Format the current buffer using `cabal-fmt'.
+  "Format the current buffer using `curry-cabal-format-command'.
 Pipes the buffer content through the command and replaces the
 buffer text with the formatted output, preserving point."
   (interactive)
-  (let ((outbuf (generate-new-buffer " *curry-cabal-format*"))
-        (orig-point (point))
-        (orig-window-start (window-start)))
-    (unwind-protect
-        (let ((exit-code (call-process-region (point-min) (point-max)
-                                              "cabal-fmt" nil outbuf nil)))
-          (if (zerop exit-code)
-              (progn
-                (erase-buffer)
-                (insert-buffer-substring outbuf)
-                (goto-char (min orig-point (point-max)))
-                (set-window-start (selected-window) orig-window-start))
-            (user-error "Formatting with cabal-fmt failed: %s"
-                        (with-current-buffer outbuf
-                          (string-trim (buffer-string))))))
-      (kill-buffer outbuf))))
+  (let ((program (car curry-cabal-format-command))
+        (args (cdr curry-cabal-format-command)))
+    (unless (executable-find program)
+      (user-error "Cannot format: %s is not installed (see `%s')"
+                  program 'curry-cabal-format-command))
+    (let ((outbuf (generate-new-buffer " *curry-cabal-format*"))
+          (orig-point (point))
+          (orig-window-start (window-start)))
+      (unwind-protect
+          (let ((exit-code (apply #'call-process-region (point-min) (point-max)
+                                  program nil outbuf nil args)))
+            (if (zerop exit-code)
+                (progn
+                  (erase-buffer)
+                  (insert-buffer-substring outbuf)
+                  (goto-char (min orig-point (point-max)))
+                  (set-window-start (selected-window) orig-window-start))
+              (user-error "Formatting with %s failed: %s"
+                          program
+                          (with-current-buffer outbuf
+                            (string-trim (buffer-string))))))
+        (kill-buffer outbuf)))))
 
 (defun curry-cabal--format-before-save ()
   "Format the buffer before saving if `curry-cabal-format-on-save' is non-nil."
