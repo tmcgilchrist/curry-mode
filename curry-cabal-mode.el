@@ -118,7 +118,7 @@ buffer text with the formatted output, preserving point."
    '((section_type) @font-lock-keyword-face
      "cabal-version" @font-lock-keyword-face
      "if" @font-lock-keyword-face
-     "elseif" @font-lock-keyword-face
+     "elif" @font-lock-keyword-face
      "else" @font-lock-keyword-face)
 
    :language 'cabal
@@ -136,17 +136,53 @@ buffer text with the formatted output, preserving point."
 
 ;;; Indentation
 
+(defconst curry-cabal--section-keyword-regexp
+  (regexp-opt '("library" "executable" "test-suite" "benchmark"
+                "common" "flag" "source-repository")
+              'words)
+  "Regexp matching the keyword that opens a Cabal section.
+Matches the keyword as it appears in the buffer, so it spells
+`test-suite' and `source-repository' with dashes rather than the
+underscores used by the corresponding node types.")
+
+(defun curry-cabal--after-section-header-p (_node _parent bol &rest _)
+  "Return non-nil when the line at BOL follows a section header.
+A section header with no body yet does not parse as a section: the
+grammar reports it as (ERROR (section_type) (section_name)), so no
+parent-is rule can match and the new line would open at column 0.
+Recognise the header textually instead, so that pressing RET after
+typing one opens the body at the right column."
+  (save-excursion
+    (goto-char bol)
+    (forward-line -1)
+    (while (and (not (bobp)) (looking-at-p "[ \t]*$"))
+      (forward-line -1))
+    (looking-at-p (concat "[ \t]*" curry-cabal--section-keyword-regexp))))
+
 (defvar curry-cabal--indent-rules
   `((cabal
+     ;; A section header always sits at column 0.  The grammar makes a
+     ;; comment that precedes a section the section's first child, which
+     ;; moves the section's start onto the comment's line; without this
+     ;; rule the section rules below would then indent the header itself.
+     ((node-is "section_type") column-0 0)
+     ;; Opening the body of a section that does not parse as one yet.
+     (curry-cabal--after-section-header-p
+      prev-line curry-cabal-indent-offset)
      ((parent-is "cabal") column-0 0)
      ;; Properties at the top level
      ((parent-is "properties") column-0 0)
      ;; Sections at the top level
      ((parent-is "sections") column-0 0)
-     ;; Fields within sections
-     ((parent-is "property_block") parent-bol curry-cabal-indent-offset)
+     ;; Fields within sections.  These anchor on the grandparent -- the
+     ;; section or conditional owning the block -- rather than on the
+     ;; block itself.  The scanner emits a zero-width `indent' token at
+     ;; the first field, so the block starts on that field's line and
+     ;; `parent-bol' would measure the body from its own first line,
+     ;; pushing every later field one level deeper on each re-indent.
+     ((parent-is "property_block") grand-parent curry-cabal-indent-offset)
      ((parent-is "property_or_conditional_block")
-      parent-bol curry-cabal-indent-offset)
+      grand-parent curry-cabal-indent-offset)
      ;; Conditionals
      ((parent-is "conditional") parent-bol 0)
      ((parent-is "condition_if") parent-bol curry-cabal-indent-offset)
