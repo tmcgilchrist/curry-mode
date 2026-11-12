@@ -107,7 +107,8 @@ The word symbols may affect column alignment."
   :group 'curry
   :package-version '(curry-mode . "0.1.0"))
 
-(defconst curry-version "0.1.0")
+(defconst curry-version (package-get-version)
+  "The version of curry-mode, read from the Version header of this file.")
 
 (defun curry-version ()
   "Display the current package version in the minibuffer.
