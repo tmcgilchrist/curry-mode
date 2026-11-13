@@ -123,6 +123,23 @@ displaying it."
           (message "curry-mode %s" curry-version))
       (or pkg-version curry-version))))
 
+;; We pin a fork of tree-sitter-haskell rather than an upstream release,
+;; for two independent reasons, so raising the minimum Emacs version
+;; alone does not let us drop it:
+;;
+;; - ABI.  Upstream v0.24.x ships a parser generated at ABI 15, which
+;;   only loads when Emacs links against libtree-sitter 0.25 or newer.
+;;   That depends on how Emacs was built, not on its version, and many
+;;   Emacs 29 and 30 builds link an older library.  The fork commits a
+;;   parser regenerated at ABI 14, which every supported Emacs can load.
+;;
+;; - Fixes.  The fork tracks tek/tree-sitter-haskell, whose 2026 fixes
+;;   (typed holes, the hsc2hs dialect, tab handling and an aarch64
+;;   memory-corruption fix in the scanner) are not in any upstream
+;;   release yet.
+;;
+;; Move to an upstream tag once a release carries those fixes and
+;; libtree-sitter 0.25 is what Emacs builds commonly link against.
 (defconst curry-grammar-recipes
   '((haskell "https://github.com/tmcgilchrist/tree-sitter-haskell"
              "curry-mode/tek-main-abi14"
