@@ -111,18 +111,14 @@ The word symbols may affect column alignment."
 (defconst curry-version (package-get-version)
   "The version of curry-mode, read from the Version header of this file.")
 
-(defun curry-version ()
-  "Display the current package version in the minibuffer.
-Fallback to `curry-version' when the package version is missing.
-When called from other Elisp code returns the version instead of
-displaying it."
-  (interactive)
-  (let ((pkg-version (package-get-version)))
-    (if (called-interactively-p 'interactively)
-        (if pkg-version
-            (message "curry-mode %s (package: %s)" curry-version pkg-version)
-          (message "curry-mode %s" curry-version))
-      (or pkg-version curry-version))))
+(defun curry-version (&optional show)
+  "Return the curry-mode version as a string.
+When called interactively, or when SHOW is non-nil, also display it
+in the echo area."
+  (interactive (list t))
+  (when show
+    (message "curry-mode %s" curry-version))
+  curry-version)
 
 ;; We pin a fork of tree-sitter-haskell rather than an upstream release,
 ;; for two independent reasons, so raising the minimum Emacs version
