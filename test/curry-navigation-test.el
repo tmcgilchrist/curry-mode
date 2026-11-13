@@ -51,6 +51,106 @@
         (end-of-defun)
         (expect (> (point) pos) :to-be-truthy)))))
 
+;;;; type declarations
+
+(defconst curry-test--type-declarations "
+        data A = A Int
+
+        newtype B
+          = B { unB :: Int }
+          deriving (Show)
+
+        type family F a where
+          F Int = Bool
+
+        data family D a
+
+        type instance G Int = Bool
+
+        type T :: Type
+
+        f = 1"
+  "Fixture with each kind of type declaration, some spread over lines.")
+
+(defun curry-test--line-starts (move)
+  "Return the text at the start of each line MOVE stops on.
+Start from the end of the buffer and call MOVE until point stops
+changing."
+  (goto-char (point-max))
+  (let (starts last)
+    (while (not (eql last (point)))
+      (setq last (point))
+      (funcall move)
+      (unless (eql last (point))
+        (push (buffer-substring-no-properties (point) (line-end-position))
+              starts)))
+    starts))
+
+(describe "navigation: type declarations"
+  (before-all
+    (curry-test-skip-unless-grammar))
+
+  (it "beginning-of-defun moves from a newtype's record to its start"
+    (with-curry-buffer curry-test--type-declarations
+      (search-forward "unB")
+      (beginning-of-defun)
+      (expect (looking-at "newtype B$") :to-be-truthy)))
+
+  (it "beginning-of-defun moves from a deriving clause to its newtype"
+    (with-curry-buffer curry-test--type-declarations
+      (search-forward "deriving")
+      (beginning-of-defun)
+      (expect (looking-at "newtype B$") :to-be-truthy)))
+
+  (it "beginning-of-defun moves from a type family equation to the family"
+    (with-curry-buffer curry-test--type-declarations
+      (search-forward "F Int")
+      (beginning-of-defun)
+      (expect (looking-at "type family F") :to-be-truthy)))
+
+  (it "beginning-of-defun stops at every type declaration"
+    (with-curry-buffer curry-test--type-declarations
+      (expect (curry-test--line-starts #'beginning-of-defun)
+              :to-equal '("data A = A Int"
+                          "newtype B"
+                          "type family F a where"
+                          "data family D a"
+                          "type instance G Int = Bool"
+                          "type T :: Type"
+                          "f = 1"))))
+
+  (it "end-of-defun stops after every type declaration"
+    (with-curry-buffer curry-test--type-declarations
+      (let (lines)
+        (while (let ((pos (point)))
+                 (end-of-defun)
+                 (/= pos (point)))
+          (push (line-number-at-pos) lines))
+        (expect (length lines) :to-equal 7))))
+
+  (it "names type families, instances and kind signatures"
+    (with-curry-buffer curry-test--type-declarations
+      (dolist (probe '(("F Int" . "F")
+                       ("family D" . "D")
+                       ("instance G" . "G")
+                       ("T ::" . "T")))
+        (goto-char (point-min))
+        (search-forward (car probe))
+        (expect (treesit-defun-name (treesit-defun-at-point))
+                :to-equal (cdr probe)))))
+
+  (it "backward-sentence stops at every type declaration (Emacs 30+)"
+    (curry-test-skip-unless-emacs-30)
+    (with-curry-buffer curry-test--type-declarations
+      (expect (curry-test--line-starts #'backward-sentence)
+              :to-equal '("data A = A Int"
+                          "newtype B"
+                          "type family F a where"
+                          "data family D a"
+                          "type instance G Int = Bool"
+                          "type T :: Type"
+                          "f = 1")))))
+
 ;;;; forward-sexp
 
 (describe "navigation: forward-sexp"

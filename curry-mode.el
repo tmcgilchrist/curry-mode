@@ -543,22 +543,33 @@ Scans the buffer for the smallest common indentation step and sets
 ;;;; Find the definition at point
 
 (defvar curry--defun-type-regexp
-  (regexp-opt '("function"
-                "bind"
-                "signature"
-                "data_type"
-                "newtype"
-                "type_synonym"
-                "class"
-                "instance"
-                "deriving_instance"
-                "foreign_import"
-                "foreign_export"
-                "fixity"
-                "pattern_synonym"
-                "import"))
+  (concat "\\`"
+          (regexp-opt '("function"
+                        "bind"
+                        "signature"
+                        "data_type"
+                        "newtype"
+                        "type_synonym"
+                        "type_family"
+                        "type_instance"
+                        "data_family"
+                        "data_instance"
+                        "kind_signature"
+                        "class"
+                        "instance"
+                        "deriving_instance"
+                        "foreign_import"
+                        "foreign_export"
+                        "fixity"
+                        "pattern_synonym"
+                        "import"))
+          "\\'")
   "Regex matching tree-sitter node types treated as defun-like.
-Used as the value of `treesit-defun-type-regexp'.")
+Used as the value of `treesit-defun-type-regexp'.  The match is
+anchored: unanchored, `newtype' would also match the
+`newtype_constructor' inside it and `bind' the `local_binds' of a
+where clause, so \\[beginning-of-defun] stopped part-way into those
+declarations.")
 
 (defun curry--defun-valid-p (node)
   "Return non-nil if NODE is a top-level definition.
@@ -584,7 +595,8 @@ Return nil if there is no name or if NODE is not a defun node."
      (curry--subtree-text node "name" 2))
     ("newtype"
      (curry--subtree-text node "name" 2))
-    ("type_synonym"
+    ((or "type_synonym" "type_family" "type_instance"
+         "data_family" "data_instance" "kind_signature")
      (curry--subtree-text node "name" 2))
     ("class"
      (curry--subtree-text node "name" 2))
@@ -692,12 +704,8 @@ ARG is as in `forward-sexp-function'."
                           "unboxed_tuple" "unboxed_sum"
                           "record" "exports" "import_list")
                         'symbols))
-     (sentence ,(regexp-opt '("function" "bind" "signature"
-                              "data_type" "newtype" "type_synonym"
-                              "class" "instance" "deriving_instance"
-                              "import" "fixity"
-                              "foreign_import" "foreign_export"
-                              "pattern_synonym")))
+     ;; Sentences are the same declarations that count as defuns.
+     (sentence ,curry--defun-type-regexp)
      (text ,(regexp-opt '("comment" "haddock" "string" "char")))
      (comment ,(regexp-opt '("comment" "haddock"))))))
 
