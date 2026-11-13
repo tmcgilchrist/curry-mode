@@ -92,9 +92,9 @@ are standard Emacs keybindings, backed by the AST rather than heuristics:
 | `M-e`      | `forward-sentence`      | Move to the next top-level declaration (Emacs 30+)         |
 | `M-g i`    | `curry-jump-to-imports` | Jump to the import block; toggle back on second invocation |
 
-<!-- TODO C-M-a / C-M-e jump around between data types fine but newtype or type they don't work -->
 "Definitions" include function bindings, type signatures, data types, newtypes,
-type synonyms, classes, instances, and imports. "Statements" (sentences) cover
+type synonyms, type and data families and their instances, standalone kind
+signatures, classes, instances, and imports. "Statements" (sentences) cover
 the same set, enabling `M-a`/`M-e` to jump between top-level declarations.
 
 All navigation commands are also available from the Haskell menu.

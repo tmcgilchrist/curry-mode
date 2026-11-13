@@ -111,18 +111,14 @@ The word symbols may affect column alignment."
 (defconst curry-version (package-get-version)
   "The version of curry-mode, read from the Version header of this file.")
 
-(defun curry-version ()
-  "Display the current package version in the minibuffer.
-Fallback to `curry-version' when the package version is missing.
-When called from other Elisp code returns the version instead of
-displaying it."
-  (interactive)
-  (let ((pkg-version (package-get-version)))
-    (if (called-interactively-p 'interactively)
-        (if pkg-version
-            (message "curry-mode %s (package: %s)" curry-version pkg-version)
-          (message "curry-mode %s" curry-version))
-      (or pkg-version curry-version))))
+(defun curry-version (&optional show)
+  "Return the curry-mode version as a string.
+When called interactively, or when SHOW is non-nil, also display it
+in the echo area."
+  (interactive (list t))
+  (when show
+    (message "curry-mode %s" curry-version))
+  curry-version)
 
 ;; We pin a fork of tree-sitter-haskell rather than an upstream release,
 ;; for two independent reasons, so raising the minimum Emacs version
@@ -547,22 +543,33 @@ Scans the buffer for the smallest common indentation step and sets
 ;;;; Find the definition at point
 
 (defvar curry--defun-type-regexp
-  (regexp-opt '("function"
-                "bind"
-                "signature"
-                "data_type"
-                "newtype"
-                "type_synonym"
-                "class"
-                "instance"
-                "deriving_instance"
-                "foreign_import"
-                "foreign_export"
-                "fixity"
-                "pattern_synonym"
-                "import"))
+  (concat "\\`"
+          (regexp-opt '("function"
+                        "bind"
+                        "signature"
+                        "data_type"
+                        "newtype"
+                        "type_synonym"
+                        "type_family"
+                        "type_instance"
+                        "data_family"
+                        "data_instance"
+                        "kind_signature"
+                        "class"
+                        "instance"
+                        "deriving_instance"
+                        "foreign_import"
+                        "foreign_export"
+                        "fixity"
+                        "pattern_synonym"
+                        "import"))
+          "\\'")
   "Regex matching tree-sitter node types treated as defun-like.
-Used as the value of `treesit-defun-type-regexp'.")
+Used as the value of `treesit-defun-type-regexp'.  The match is
+anchored: unanchored, `newtype' would also match the
+`newtype_constructor' inside it and `bind' the `local_binds' of a
+where clause, so \\[beginning-of-defun] stopped part-way into those
+declarations.")
 
 (defun curry--defun-valid-p (node)
   "Return non-nil if NODE is a top-level definition.
@@ -588,7 +595,8 @@ Return nil if there is no name or if NODE is not a defun node."
      (curry--subtree-text node "name" 2))
     ("newtype"
      (curry--subtree-text node "name" 2))
-    ("type_synonym"
+    ((or "type_synonym" "type_family" "type_instance"
+         "data_family" "data_instance" "kind_signature")
      (curry--subtree-text node "name" 2))
     ("class"
      (curry--subtree-text node "name" 2))
@@ -696,12 +704,8 @@ ARG is as in `forward-sexp-function'."
                           "unboxed_tuple" "unboxed_sum"
                           "record" "exports" "import_list")
                         'symbols))
-     (sentence ,(regexp-opt '("function" "bind" "signature"
-                              "data_type" "newtype" "type_synonym"
-                              "class" "instance" "deriving_instance"
-                              "import" "fixity"
-                              "foreign_import" "foreign_export"
-                              "pattern_synonym")))
+     ;; Sentences are the same declarations that count as defuns.
+     (sentence ,curry--defun-type-regexp)
      (text ,(regexp-opt '("comment" "haddock" "string" "char")))
      (comment ,(regexp-opt '("comment" "haddock"))))))
 
@@ -1017,16 +1021,20 @@ Called from `curry-mode' to configure the language-specific parts."
     (when (and (fboundp 'transpose-sexps-default-function)
                (< emacs-major-version 31))
       (setq-local transpose-sexps-function
-                  #'transpose-sexps-default-function))
+                  #'transpose-sexps-default-function))))
 
-    (curry--register-with-eglot)))
+(defvar eglot-server-programs)
 
-(defun curry--register-with-eglot ()
-  "Register curry-mode with eglot if loaded."
-  (when (boundp 'eglot-server-programs)
-    (add-to-list 'eglot-server-programs
-                 '((curry-mode :language-id "haskell")
-                   "haskell-language-server-wrapper" "--lsp"))))
+;; Register with eglot when it loads, whether that happens before or
+;; after the first Haskell buffer is opened.  Eglot's own entry for
+;; Haskell names `haskell-mode', so curry-mode needs one of its own.
+;; The entry goes last, so the user's own entries for curry-mode take
+;; precedence.
+(with-eval-after-load 'eglot
+  (add-to-list 'eglot-server-programs
+               '((curry-mode :language-id "haskell")
+                 "haskell-language-server-wrapper" "--lsp")
+               t))
 
 (define-derived-mode curry-base-mode prog-mode "Haskell"
   "Base major mode for Haskell files, providing shared setup.
