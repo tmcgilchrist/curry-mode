@@ -1013,16 +1013,20 @@ Called from `curry-mode' to configure the language-specific parts."
     (when (and (fboundp 'transpose-sexps-default-function)
                (< emacs-major-version 31))
       (setq-local transpose-sexps-function
-                  #'transpose-sexps-default-function))
+                  #'transpose-sexps-default-function))))
 
-    (curry--register-with-eglot)))
+(defvar eglot-server-programs)
 
-(defun curry--register-with-eglot ()
-  "Register curry-mode with eglot if loaded."
-  (when (boundp 'eglot-server-programs)
-    (add-to-list 'eglot-server-programs
-                 '((curry-mode :language-id "haskell")
-                   "haskell-language-server-wrapper" "--lsp"))))
+;; Register with eglot when it loads, whether that happens before or
+;; after the first Haskell buffer is opened.  Eglot's own entry for
+;; Haskell names `haskell-mode', so curry-mode needs one of its own.
+;; The entry goes last, so the user's own entries for curry-mode take
+;; precedence.
+(with-eval-after-load 'eglot
+  (add-to-list 'eglot-server-programs
+               '((curry-mode :language-id "haskell")
+                 "haskell-language-server-wrapper" "--lsp")
+               t))
 
 (define-derived-mode curry-base-mode prog-mode "Haskell"
   "Base major mode for Haskell files, providing shared setup.
