@@ -1,0 +1,58 @@
+# Emacs 31 leg of the CI matrix.
+#
+# Spindle has no matrix support, so each Emacs version gets its own
+# workflow file; they run as separate workflows of the same pipeline.
+# Keep ci-emacs-29.yaml, ci-emacs-30.yaml, ci-emacs-31.yaml and
+# ci-emacs-snapshot.yaml in sync: they should differ only in how Emacs
+# is installed.
+
+when:
+  - event: ["push", "manual"]
+    branch: ["main"]
+  - event: ["pull_request"]
+    branch: ["main"]
+
+engine: "nixery"
+
+environment:
+  # `cacert' installs the trust roots here; curl and nix both need telling.
+  SSL_CERT_FILE: "/etc/ssl/certs/ca-bundle.crt"
+  NIX_SSL_CERT_FILE: "/etc/ssl/certs/ca-bundle.crt"
+  CURL_CA_BUNDLE: "/etc/ssl/certs/ca-bundle.crt"
+
+dependencies:
+  # bash, git, coreutils, gnutar, zstd and nix are always in the image.
+  nixpkgs:
+    - cacert # TLS roots for curl and nix
+    - curl # downloads the Eldev startup script
+    - gcc # treesit-install-language-grammar compiles the grammars
+
+  # Emacs 31 is not in the spindle's own nixpkgs, so it comes from
+  # nixos-unstable. Installed by nix into $HOME/.nix-profile/bin, which is
+  # already on PATH.
+  "github:NixOS/nixpkgs/nixos-unstable":
+    - emacs31-nox
+
+steps:
+  - name: "Install Eldev"
+    command: |
+      mkdir -p /usr/local/bin
+      curl -fsSL https://raw.githubusercontent.com/emacs-eldev/eldev/master/bin/eldev \
+        -o /usr/local/bin/eldev
+      chmod +x /usr/local/bin/eldev
+      emacs --version
+      eldev --version
+
+  - name: "Install tree-sitter grammars"
+    command: |
+      eldev eval '(curry-install-grammars)'
+      eldev eval '(progn (load "curry-cabal-mode") (curry-cabal-install-grammar))'
+
+  - name: "Byte-compile"
+    command: eldev byte-compile --warnings-as-errors
+
+  - name: "Test"
+    command: eldev test
+
+  - name: "Lint"
+    command: eldev lint

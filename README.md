@@ -381,11 +381,19 @@ M-x curry-cabal-install-grammar
 `curry-cabal-mode` activates automatically for `.cabal` files and provides
 tree-sitter based font-lock, indentation, imenu (Library, Executable, Test
 Suite, Benchmark, Common, Flag, Source Repository), and formatting via
-`cabal-fmt`.
+`cabal-fmt` or `cabal-gild`.
 
-| Keybinding | Command                     | Description            |
-|------------|-----------------------------|------------------------|
-| `C-c C-f`  | `curry-cabal-format-buffer` | Format with `cabal-fmt`|
+| Keybinding | Command                     | Description                                  |
+|------------|-----------------------------|----------------------------------------------|
+| `C-c C-f`  | `curry-cabal-format-buffer` | Format with `curry-cabal-format-command`     |
+
+Formatting uses `cabal-fmt` by default. To use `cabal-gild` instead (the
+formatter haskell-language-server defaults to), or any other command that
+reads a Cabal file on stdin and writes the result to stdout:
+
+```emacs-lisp
+(setq curry-cabal-format-command '("cabal-gild"))
+```
 
 To enable automatic formatting on save:
 

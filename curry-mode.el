@@ -107,7 +107,8 @@ The word symbols may affect column alignment."
   :group 'curry
   :package-version '(curry-mode . "0.1.0"))
 
-(defconst curry-version "0.1.0")
+(defconst curry-version (package-get-version)
+  "The version of curry-mode, read from the Version header of this file.")
 
 (defun curry-version ()
   "Display the current package version in the minibuffer.
@@ -122,6 +123,23 @@ displaying it."
           (message "curry-mode %s" curry-version))
       (or pkg-version curry-version))))
 
+;; We pin a fork of tree-sitter-haskell rather than an upstream release,
+;; for two independent reasons, so raising the minimum Emacs version
+;; alone does not let us drop it:
+;;
+;; - ABI.  Upstream v0.24.x ships a parser generated at ABI 15, which
+;;   only loads when Emacs links against libtree-sitter 0.25 or newer.
+;;   That depends on how Emacs was built, not on its version, and many
+;;   Emacs 29 and 30 builds link an older library.  The fork commits a
+;;   parser regenerated at ABI 14, which every supported Emacs can load.
+;;
+;; - Fixes.  The fork tracks tek/tree-sitter-haskell, whose 2026 fixes
+;;   (typed holes, the hsc2hs dialect, tab handling and an aarch64
+;;   memory-corruption fix in the scanner) are not in any upstream
+;;   release yet.
+;;
+;; Move to an upstream tag once a release carries those fixes and
+;; libtree-sitter 0.25 is what Emacs builds commonly link against.
 (defconst curry-grammar-recipes
   '((haskell "https://github.com/tmcgilchrist/tree-sitter-haskell"
              "curry-mode/tek-main-abi14"
@@ -142,6 +160,46 @@ version that requires a newer grammar."
         (message "Installing %s tree-sitter grammar..." grammar)
         (let ((treesit-language-source-alist curry-grammar-recipes))
           (treesit-install-language-grammar grammar))))))
+
+(defconst curry--grammar-probes
+  '(("type X = Int" . "type_synonym")
+    ("f = _" . "typed_hole"))
+  "Snippets that only the pinned Haskell grammar parses as expected.
+Each entry is (CODE . NODE-TYPE): parsing CODE must produce a node of
+NODE-TYPE.  `type_synonym' was spelled `type_synomym' in releases
+before 0.24, and the font-lock and navigation queries use the new
+spelling.  `typed_hole' arrived with the fixes the pinned fork
+carries, so a grammar without it predates the pinned revision.")
+
+(defvar curry--grammar-compatibility-checked nil
+  "Non-nil once the grammar compatibility check has run this session.")
+
+(defun curry--grammar-outdated-p ()
+  "Return non-nil if the installed Haskell grammar is older than pinned.
+The check parses each snippet in `curry--grammar-probes' and looks
+for its node type in the tree.  `treesit-ready-p' only tells whether
+some Haskell grammar loads; an older one loads just as well and then
+misparses the constructs it predates."
+  (and (treesit-language-available-p 'haskell)
+       (seq-some
+        (pcase-lambda (`(,code . ,type))
+          (with-temp-buffer
+            (insert code)
+            (not (treesit-search-subtree
+                  (treesit-parser-root-node (treesit-parser-create 'haskell))
+                  (concat "\\`" (regexp-quote type) "\\'")))))
+        curry--grammar-probes)))
+
+(defun curry--check-grammar-compatibility ()
+  "Warn once per session if the installed Haskell grammar is outdated."
+  (unless curry--grammar-compatibility-checked
+    (setq curry--grammar-compatibility-checked t)
+    (when (curry--grammar-outdated-p)
+      (display-warning
+       'curry-mode
+       "The installed tree-sitter Haskell grammar appears older than the \
+version curry-mode requires.  Run C-u M-x curry-install-grammars to \
+reinstall it."))))
 
 ;;;; Language data
 
@@ -924,6 +982,9 @@ Called from `curry-mode' to configure the language-specific parts."
     (when (y-or-n-p
            "Haskell tree-sitter grammar is not installed.  Install now?")
       (curry-install-grammars)))
+
+  ;; Warn if the installed grammar is outdated
+  (curry--check-grammar-compatibility)
 
   (when (treesit-ready-p language)
     (let ((parser (treesit-parser-create language)))

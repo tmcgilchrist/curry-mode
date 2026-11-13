@@ -50,8 +50,26 @@ Cabal files conventionally use 2-space indentation."
   :group 'curry-cabal
   :package-version '(curry-mode . "0.1.0"))
 
+(defcustom curry-cabal-format-command '("cabal-fmt")
+  "Command used by `curry-cabal-format-buffer', as (PROGRAM ARGS...).
+The command must read a Cabal file on standard input and write the
+formatted file to standard output.  cabal-fmt and cabal-gild both do
+so when given no file argument.
+
+haskell-language-server can also format Cabal files, defaulting to
+cabal-gild, but it runs the same executables, so it still needs one
+of them on the PATH."
+  :type '(choice (const :tag "cabal-fmt" ("cabal-fmt"))
+                 (const :tag "cabal-gild" ("cabal-gild"))
+                 (cons :tag "Other command"
+                       (string :tag "Program")
+                       (repeat :tag "Arguments" string)))
+  :group 'curry-cabal
+  :package-version '(curry-mode . "0.1.0"))
+
 (defcustom curry-cabal-format-on-save nil
-  "When non-nil, format the buffer with `cabal-fmt' before saving."
+  "When non-nil, format the buffer before saving.
+Formatting uses `curry-cabal-format-command'."
   :type 'boolean
   :safe #'booleanp
   :group 'curry-cabal
@@ -79,26 +97,32 @@ With prefix argument FORCE, reinstall even if already installed."
 ;;; Formatting
 
 (defun curry-cabal-format-buffer ()
-  "Format the current buffer using `cabal-fmt'.
+  "Format the current buffer using `curry-cabal-format-command'.
 Pipes the buffer content through the command and replaces the
 buffer text with the formatted output, preserving point."
   (interactive)
-  (let ((outbuf (generate-new-buffer " *curry-cabal-format*"))
-        (orig-point (point))
-        (orig-window-start (window-start)))
-    (unwind-protect
-        (let ((exit-code (call-process-region (point-min) (point-max)
-                                              "cabal-fmt" nil outbuf nil)))
-          (if (zerop exit-code)
-              (progn
-                (erase-buffer)
-                (insert-buffer-substring outbuf)
-                (goto-char (min orig-point (point-max)))
-                (set-window-start (selected-window) orig-window-start))
-            (user-error "Running cabal-fmt failed: %s"
-                        (with-current-buffer outbuf
-                          (string-trim (buffer-string))))))
-      (kill-buffer outbuf))))
+  (let ((program (car curry-cabal-format-command))
+        (args (cdr curry-cabal-format-command)))
+    (unless (executable-find program)
+      (user-error "Cannot format: %s is not installed (see `%s')"
+                  program 'curry-cabal-format-command))
+    (let ((outbuf (generate-new-buffer " *curry-cabal-format*"))
+          (orig-point (point))
+          (orig-window-start (window-start)))
+      (unwind-protect
+          (let ((exit-code (apply #'call-process-region (point-min) (point-max)
+                                  program nil outbuf nil args)))
+            (if (zerop exit-code)
+                (progn
+                  (erase-buffer)
+                  (insert-buffer-substring outbuf)
+                  (goto-char (min orig-point (point-max)))
+                  (set-window-start (selected-window) orig-window-start))
+              (user-error "Formatting with %s failed: %s"
+                          program
+                          (with-current-buffer outbuf
+                            (string-trim (buffer-string))))))
+        (kill-buffer outbuf)))))
 
 (defun curry-cabal--format-before-save ()
   "Format the buffer before saving if `curry-cabal-format-on-save' is non-nil."
@@ -118,7 +142,7 @@ buffer text with the formatted output, preserving point."
    '((section_type) @font-lock-keyword-face
      "cabal-version" @font-lock-keyword-face
      "if" @font-lock-keyword-face
-     "elseif" @font-lock-keyword-face
+     "elif" @font-lock-keyword-face
      "else" @font-lock-keyword-face)
 
    :language 'cabal
@@ -136,17 +160,53 @@ buffer text with the formatted output, preserving point."
 
 ;;; Indentation
 
+(defconst curry-cabal--section-keyword-regexp
+  (regexp-opt '("library" "executable" "test-suite" "benchmark"
+                "common" "flag" "source-repository")
+              'words)
+  "Regexp matching the keyword that opens a Cabal section.
+Matches the keyword as it appears in the buffer, so it spells
+`test-suite' and `source-repository' with dashes rather than the
+underscores used by the corresponding node types.")
+
+(defun curry-cabal--after-section-header-p (_node _parent bol &rest _)
+  "Return non-nil when the line at BOL follows a section header.
+A section header with no body yet does not parse as a section: the
+grammar reports it as (ERROR (section_type) (section_name)), so no
+parent-is rule can match and the new line would open at column 0.
+Recognise the header textually instead, so that pressing RET after
+typing one opens the body at the right column."
+  (save-excursion
+    (goto-char bol)
+    (forward-line -1)
+    (while (and (not (bobp)) (looking-at-p "[ \t]*$"))
+      (forward-line -1))
+    (looking-at-p (concat "[ \t]*" curry-cabal--section-keyword-regexp))))
+
 (defvar curry-cabal--indent-rules
   `((cabal
+     ;; A section header always sits at column 0.  The grammar makes a
+     ;; comment that precedes a section the section's first child, which
+     ;; moves the section's start onto the comment's line; without this
+     ;; rule the section rules below would then indent the header itself.
+     ((node-is "section_type") column-0 0)
+     ;; Opening the body of a section that does not parse as one yet.
+     (curry-cabal--after-section-header-p
+      prev-line curry-cabal-indent-offset)
      ((parent-is "cabal") column-0 0)
      ;; Properties at the top level
      ((parent-is "properties") column-0 0)
      ;; Sections at the top level
      ((parent-is "sections") column-0 0)
-     ;; Fields within sections
-     ((parent-is "property_block") parent-bol curry-cabal-indent-offset)
+     ;; Fields within sections.  These anchor on the grandparent -- the
+     ;; section or conditional owning the block -- rather than on the
+     ;; block itself.  The scanner emits a zero-width `indent' token at
+     ;; the first field, so the block starts on that field's line and
+     ;; `parent-bol' would measure the body from its own first line,
+     ;; pushing every later field one level deeper on each re-indent.
+     ((parent-is "property_block") grand-parent curry-cabal-indent-offset)
      ((parent-is "property_or_conditional_block")
-      parent-bol curry-cabal-indent-offset)
+      grand-parent curry-cabal-indent-offset)
      ;; Conditionals
      ((parent-is "conditional") parent-bol 0)
      ((parent-is "condition_if") parent-bol curry-cabal-indent-offset)

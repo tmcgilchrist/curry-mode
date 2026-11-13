@@ -24,8 +24,7 @@
 
 (describe "curry-mode indentation"
   (before-all
-    (unless (treesit-language-available-p 'haskell)
-      (signal 'buttercup-pending "tree-sitter Haskell grammar not available")))
+    (curry-test-skip-unless-grammar))
 
   (describe "top-level declarations"
 

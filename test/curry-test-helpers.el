@@ -6,23 +6,78 @@
 
 ;; Shared macros and functions used across curry-mode buttercup test suites.
 ;; Provides unified buffer setup, font-lock assertion helpers, and
-;; indentation test macros.
+;; indentation test macros that work with both `curry-mode' and
+;; `curry-cabal-mode'.
+;;
+;; Each assertion macro comes in three forms: a `--it' form taking the
+;; major mode explicitly, plus thin wrappers for the two modes.  So
+;; `when-indenting-it' covers Haskell, `when-indenting-cabal-it' covers
+;; Cabal, and `when-indenting--it' takes any mode.
 
 ;;; Code:
 
 (require 'buttercup)
 (require 'curry-mode)
+(require 'curry-cabal-mode)
 
-;; Ensure the correct grammar is installed before tests run.
-;; Verify by checking for a node type that only exists in the
-;; current grammar (type_synonym was type_synomym in older versions).
-(unless (and (treesit-language-available-p 'haskell)
-             (with-temp-buffer
-               (insert "type X = Int")
-               (treesit-parser-create 'haskell)
-               (treesit-search-subtree
-                (treesit-buffer-root-node) "type_synonym")))
-  (curry-install-grammars t))
+;;;; Grammar availability
+
+;; Suites guard themselves with `curry-test-skip-unless-grammar' in a
+;; `before-all' rather than installing grammars on load: requiring this
+;; file should not shell out to a C compiler, and a developer without
+;; the grammar should get pending specs instead of a build.  CI installs
+;; the grammars explicitly before running `eldev test'.
+
+(defvar curry-test--grammar-status nil
+  "Alist of (LANGUAGE . STATUS) cached by `curry-test-grammar-status'.")
+
+(defun curry-test--grammar-current-p (language)
+  "Return non-nil when the installed LANGUAGE grammar is recent enough.
+Only `haskell' has a version probe: the `type_synonym' node type was
+spelled `type_synomym' in older releases of the grammar, and curry-mode
+queries the current spelling.  Every other language counts as current
+once it is installed."
+  (or (not (eq language 'haskell))
+      (with-temp-buffer
+        (insert "type X = Int")
+        (treesit-parser-create 'haskell)
+        (and (treesit-search-subtree
+              (treesit-buffer-root-node) "type_synonym")
+             t))))
+
+(defun curry-test-grammar-status (&optional language)
+  "Return the state of the LANGUAGE grammar as a symbol.
+LANGUAGE defaults to `haskell'.  The result is one of `ready',
+`missing' or `outdated', and is cached per language."
+  (let ((language (or language 'haskell)))
+    (or (alist-get language curry-test--grammar-status)
+        (setf (alist-get language curry-test--grammar-status)
+              (cond
+               ((not (treesit-language-available-p language)) 'missing)
+               ((curry-test--grammar-current-p language) 'ready)
+               (t 'outdated))))))
+
+(defun curry-test-skip-unless-grammar (&optional language)
+  "Mark the current suite pending unless the LANGUAGE grammar is usable.
+LANGUAGE defaults to `haskell'.  Call from a `before-all' block."
+  (let ((language (or language 'haskell)))
+    (pcase (curry-test-grammar-status language)
+      ('missing
+       (signal 'buttercup-pending
+               (format "tree-sitter %s grammar not available"
+                       (capitalize (symbol-name language)))))
+      ;; Only `haskell' has a version probe, so only it can be outdated.
+      ('outdated
+       (signal 'buttercup-pending
+               "tree-sitter Haskell grammar is outdated (no `type_synonym' \
+node type); reinstall with M-x curry-install-grammars")))))
+
+(defun curry-test-skip-unless-emacs-30 ()
+  "Mark the current suite pending unless `treesit-thing-settings' exists.
+Call from a `before-all' block."
+  (unless (boundp 'treesit-thing-settings)
+    (signal 'buttercup-pending
+            "treesit-thing-settings not available (requires Emacs 30+)")))
 
 ;;;; String helpers
 
@@ -78,6 +133,12 @@ CONTENT is automatically dedented via `curry-test--dedent'."
   (declare (indent 1))
   `(with-curry-test-buffer curry-mode ,content ,@body))
 
+(defmacro with-curry-cabal-buffer (content &rest body)
+  "Set up a temporary buffer with CONTENT in `curry-cabal-mode', run BODY.
+CONTENT is automatically dedented via `curry-test--dedent'."
+  (declare (indent 1))
+  `(with-curry-test-buffer curry-cabal-mode ,content ,@body))
+
 ;;;; Font-lock helpers
 
 (defun curry-test-face-at-range (start end)
@@ -95,6 +156,49 @@ Otherwise return the symbol `various-faces'."
           (setq pos (1+ pos)))
         (if consistent face 'various-faces)))))
 
+(defun curry-test--face-target (target)
+  "Resolve TARGET to a (START END DESCRIPTION) list in the current buffer.
+TARGET is one of:
+  - a string, searched for sequentially from point (whole identifiers are
+    matched on symbol boundaries, other text literally);
+  - a position (integer);
+  - a (START END) range.
+Return nil when a string TARGET cannot be found."
+  (cond
+   ((stringp target)
+    (let ((case-fold-search nil))
+      (when (if (string-match-p "\\`[a-zA-Z_][a-zA-Z0-9_']*\\'" target)
+                (re-search-forward
+                 (concat "\\_<" (regexp-quote target) "\\_>") nil t)
+              (search-forward target nil t))
+        (list (match-beginning 0) (1- (match-end 0)) (format "%S" target)))))
+   ((integerp target)
+    (list target target (format "position %d" target)))
+   ((and (consp target) (integerp (car target)))
+    (list (nth 0 target) (nth 1 target)
+          (format "range %d-%d" (nth 0 target) (nth 1 target))))))
+
+(buttercup-define-matcher :to-have-face (target expected)
+  "Check that TARGET is fontified with face EXPECTED in the current buffer.
+TARGET is a string (searched for sequentially from point, matching whole
+identifiers on symbol boundaries), a position, or a (START END) range.
+Only meaningful after the buffer has been fontified."
+  (let* ((target (funcall target))
+         (expected (funcall expected))
+         (resolved (curry-test--face-target target)))
+    (if (not resolved)
+        (cons nil (format "Expected to find %S in the buffer to check its \
+face, but it was not present" target))
+      (let* ((start (nth 0 resolved))
+             (end (nth 1 resolved))
+             (desc (nth 2 resolved))
+             (actual (curry-test-face-at-range start end)))
+        (cons (equal actual expected)
+              (if (equal actual expected)
+                  (format "Expected %s not to have face %S" desc expected)
+                (format "Expected %s to have face %S, but it had %S"
+                        desc expected actual)))))))
+
 (defun curry-test--check-face-specs (mode content face-specs)
   "Fontify CONTENT with MODE and assert FACE-SPECS.
 Each element of FACE-SPECS is either:
@@ -108,39 +212,36 @@ Each element of FACE-SPECS is either:
     (goto-char (point-min))
     (dolist (spec face-specs)
       (if (stringp (car spec))
-          (let* ((text (nth 0 spec))
-                 (expected (nth 1 spec))
-                 (case-fold-search nil)
-                 (found (if (string-match-p
-                             "\\`[a-zA-Z_][a-zA-Z0-9_']*\\'" text)
-                            (re-search-forward
-                             (concat "\\_<" (regexp-quote text) "\\_>")
-                             nil t)
-                          (search-forward text nil t))))
-            (expect found :not :to-be nil)
-            (when found
-              (let* ((start (match-beginning 0))
-                     (end (1- (match-end 0)))
-                     (actual (curry-test-face-at-range start end)))
-                (expect actual :to-equal expected))))
-        (let* ((start (nth 0 spec))
-               (end (nth 1 spec))
-               (expected (nth 2 spec))
-               (actual (curry-test-face-at-range start end)))
-          (expect actual :to-equal expected))))))
+          ;; Text-based spec: ("text" face)
+          (expect (nth 0 spec) :to-have-face (nth 1 spec))
+        ;; Position-based spec: (start end face)
+        (expect (list (nth 0 spec) (nth 1 spec)) :to-have-face (nth 2 spec))))))
 
-(defmacro when-fontifying-it (description &rest tests)
-  "Create a Buttercup test asserting font-lock faces in Haskell code.
-DESCRIPTION is the test name.  Each element of TESTS is
+(defmacro when-fontifying--it (mode description &rest tests)
+  "Create a Buttercup test asserting font-lock faces.
+MODE is the major mode function to fontify with.  DESCRIPTION is the
+test name.  Each element of TESTS is
   (CODE SPEC ...)
 where each SPEC is either (\"text\" FACE) for text-based matching
 or (START END FACE) for position-based matching."
-  (declare (indent 1))
+  (declare (indent 2))
   `(it ,description
      (dolist (test (quote ,tests))
        (let ((content (car test))
              (specs (cdr test)))
-         (curry-test--check-face-specs #'curry-mode content specs)))))
+         (curry-test--check-face-specs #',mode content specs)))))
+
+(defmacro when-fontifying-it (description &rest tests)
+  "Create a Buttercup test asserting font-lock faces in Haskell code.
+DESCRIPTION is the test name.  Uses `curry-mode'."
+  (declare (indent 1))
+  `(when-fontifying--it curry-mode ,description ,@tests))
+
+(defmacro when-fontifying-cabal-it (description &rest tests)
+  "Create a Buttercup test asserting font-lock faces in Cabal code.
+DESCRIPTION is the test name.  Uses `curry-cabal-mode'."
+  (declare (indent 1))
+  `(when-fontifying--it curry-cabal-mode ,description ,@tests))
 
 ;;;; Indentation helpers
 
@@ -151,12 +252,13 @@ or (START END FACE) for position-based matching."
    (split-string code "\n")
    "\n"))
 
-(defmacro when-indenting-it (description &rest code-strings)
+(defmacro when-indenting--it (mode description &rest code-strings)
   "Create a Buttercup test that asserts each CODE-STRING indents correctly.
-DESCRIPTION is the test name.  Each CODE-STRING is a properly-indented
-Haskell code string.  The macro strips indentation, re-indents via
-`curry-mode', and asserts the result matches the original."
-  (declare (indent 1))
+MODE is the major mode function to use.  DESCRIPTION is the test name.
+Each CODE-STRING is a properly-indented source string.  The macro strips
+indentation, re-indents via MODE, and asserts the result matches the
+original."
+  (declare (indent 2))
   `(it ,description
      ,@(mapcar
         (lambda (code)
@@ -164,19 +266,31 @@ Haskell code string.  The macro strips indentation, re-indents via
              (expect
               (with-temp-buffer
                 (insert (curry-test--strip-indentation expected))
-                (curry-mode)
+                (funcall #',mode)
                 (indent-region (point-min) (point-max))
                 (buffer-string))
               :to-equal expected)))
         code-strings)))
 
-(defmacro when-indenting-with-point-it (description before after)
+(defmacro when-indenting-it (description &rest code-strings)
+  "Create a Buttercup test that asserts each CODE-STRING indents correctly.
+DESCRIPTION is the test name.  Uses `curry-mode'."
+  (declare (indent 1))
+  `(when-indenting--it curry-mode ,description ,@code-strings))
+
+(defmacro when-indenting-cabal-it (description &rest code-strings)
+  "Create a Buttercup test that asserts each CODE-STRING indents correctly.
+DESCRIPTION is the test name.  Uses `curry-cabal-mode'."
+  (declare (indent 1))
+  `(when-indenting--it curry-cabal-mode ,description ,@code-strings))
+
+(defmacro when-indenting-with-point--it (mode description before after)
   "Create a Buttercup test asserting single-line indentation with cursor tracking.
-DESCRIPTION is the test name.
+MODE is the major mode function.  DESCRIPTION is the test name.
 BEFORE is the buffer content with `|' marking cursor position.
 AFTER is the expected content after `indent-according-to-mode'
 with `|' marking the expected cursor position."
-  (declare (indent 1))
+  (declare (indent 2))
   `(it ,description
      (let* ((after-str ,after)
             (expected-cursor-pos (1+ (seq-position after-str ?|)))
@@ -186,7 +300,7 @@ with `|' marking the expected cursor position."
                                                expected-cursor-pos))))
        (with-temp-buffer
          (insert ,before)
-         (curry-mode)
+         (funcall #',mode)
          (goto-char (point-min))
          (search-forward "|")
          (delete-char -1)
@@ -195,13 +309,25 @@ with `|' marking the expected cursor position."
          (expect (buffer-string) :to-equal expected-state)
          (expect (point) :to-equal expected-cursor-pos)))))
 
-(defmacro when-newline-indenting-it (description &rest tests)
-  "Create a Buttercup test asserting empty-line indentation.
-DESCRIPTION is the test name.  Each element of TESTS is
-\(CODE EXPECTED-COLUMN) where CODE is a source string and
-EXPECTED-COLUMN is the column that `newline-and-indent' should
-produce after CODE."
+(defmacro when-indenting-with-point-it (description before after)
+  "Create a Buttercup test asserting single-line indentation with cursor tracking.
+DESCRIPTION is the test name.  Uses `curry-mode'."
   (declare (indent 1))
+  `(when-indenting-with-point--it curry-mode ,description ,before ,after))
+
+(defmacro when-indenting-cabal-with-point-it (description before after)
+  "Create a Buttercup test asserting single-line indentation with cursor tracking.
+DESCRIPTION is the test name.  Uses `curry-cabal-mode'."
+  (declare (indent 1))
+  `(when-indenting-with-point--it curry-cabal-mode ,description ,before ,after))
+
+(defmacro when-newline-indenting--it (mode description &rest tests)
+  "Create a Buttercup test asserting empty-line indentation.
+MODE is the major mode function.  DESCRIPTION is the test name.
+Each element of TESTS is \(CODE EXPECTED-COLUMN) where CODE is a
+source string and EXPECTED-COLUMN is the column that
+`newline-and-indent' should produce after CODE."
+  (declare (indent 2))
   `(it ,description
      (dolist (test (quote ,tests))
        (let ((code (nth 0 test))
@@ -209,10 +335,22 @@ produce after CODE."
          (with-temp-buffer
            (insert code)
            (let ((treesit-font-lock-level 4))
-             (curry-mode))
+             (funcall #',mode))
            (goto-char (point-max))
            (newline-and-indent)
            (expect (current-column) :to-equal expected-col))))))
+
+(defmacro when-newline-indenting-it (description &rest tests)
+  "Create a Buttercup test asserting empty-line indentation.
+DESCRIPTION is the test name.  Uses `curry-mode'."
+  (declare (indent 1))
+  `(when-newline-indenting--it curry-mode ,description ,@tests))
+
+(defmacro when-newline-indenting-cabal-it (description &rest tests)
+  "Create a Buttercup test asserting empty-line indentation.
+DESCRIPTION is the test name.  Uses `curry-cabal-mode'."
+  (declare (indent 1))
+  `(when-newline-indenting--it curry-cabal-mode ,description ,@tests))
 
 (provide 'curry-test-helpers)
 

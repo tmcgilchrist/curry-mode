@@ -15,8 +15,7 @@
 
 (describe "navigation: beginning-of-defun"
   (before-all
-    (unless (treesit-language-available-p 'haskell)
-      (signal 'buttercup-pending "tree-sitter Haskell grammar not available")))
+    (curry-test-skip-unless-grammar))
 
   (it "moves to the start of the current function"
     (with-curry-buffer "
@@ -40,8 +39,7 @@
 
 (describe "navigation: end-of-defun"
   (before-all
-    (unless (treesit-language-available-p 'haskell)
-      (signal 'buttercup-pending "tree-sitter Haskell grammar not available")))
+    (curry-test-skip-unless-grammar))
 
   (it "moves to the end of the current function"
     (with-curry-buffer "
@@ -57,8 +55,7 @@
 
 (describe "navigation: forward-sexp"
   (before-all
-    (unless (treesit-language-available-p 'haskell)
-      (signal 'buttercup-pending "tree-sitter Haskell grammar not available")))
+    (curry-test-skip-unless-grammar))
 
   (it "moves over a parenthesized expression"
     (with-curry-buffer "foo = (1 + 2)"
@@ -85,8 +82,7 @@
 
 (describe "navigation: defun-name"
   (before-all
-    (unless (treesit-language-available-p 'haskell)
-      (signal 'buttercup-pending "tree-sitter Haskell grammar not available")))
+    (curry-test-skip-unless-grammar))
 
   (it "returns the name of a function"
     (with-curry-buffer "
@@ -136,11 +132,8 @@
 
 (describe "navigation: sentence (Emacs 30+)"
   (before-all
-    (unless (treesit-language-available-p 'haskell)
-      (signal 'buttercup-pending "tree-sitter Haskell grammar not available"))
-    (unless (boundp 'treesit-thing-settings)
-      (signal 'buttercup-pending
-              "treesit-thing-settings not available (requires Emacs 30+)")))
+    (curry-test-skip-unless-grammar)
+    (curry-test-skip-unless-emacs-30))
 
   (it "forward-sentence moves between top-level definitions"
     (with-curry-buffer "
@@ -186,11 +179,8 @@
 
 (describe "navigation: list (Emacs 30+)"
   (before-all
-    (unless (treesit-language-available-p 'haskell)
-      (signal 'buttercup-pending "tree-sitter Haskell grammar not available"))
-    (unless (boundp 'treesit-thing-settings)
-      (signal 'buttercup-pending
-              "treesit-thing-settings not available (requires Emacs 30+)")))
+    (curry-test-skip-unless-grammar)
+    (curry-test-skip-unless-emacs-30))
 
   (it "forward-list moves over a parenthesized expression"
     (with-curry-buffer "foo = (1 + 2) + 3"
@@ -220,8 +210,7 @@
 
 (describe "navigation: imenu"
   (before-all
-    (unless (treesit-language-available-p 'haskell)
-      (signal 'buttercup-pending "tree-sitter Haskell grammar not available")))
+    (curry-test-skip-unless-grammar))
 
   (it "lists top-level functions"
     (with-curry-buffer "
@@ -254,8 +243,7 @@
 
 (describe "navigation: which-func"
   (before-all
-    (unless (treesit-language-available-p 'haskell)
-      (signal 'buttercup-pending "tree-sitter Haskell grammar not available")))
+    (curry-test-skip-unless-grammar))
 
   (it "returns the current defun name"
     (with-curry-buffer "
@@ -275,8 +263,7 @@
 (when (boundp 'treesit-outline-predicate)
   (describe "navigation: outline (Emacs 30+)"
     (before-all
-      (unless (treesit-language-available-p 'haskell)
-        (signal 'buttercup-pending "tree-sitter Haskell grammar not available")))
+      (curry-test-skip-unless-grammar))
 
     (it "sets treesit-outline-predicate"
       (with-curry-buffer "foo = 1"

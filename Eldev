@@ -17,4 +17,10 @@
 (setq checkdoc-permit-comma-termination-flag t)
 (setq checkdoc--interactive-docstring-flag nil)
 
+;; curry-mode hooks into `compile' and into optional third-party packages
+;; (dape, treesit-fold) with `with-eval-after-load'.  package-lint warns
+;; on every use of it in a package; the rest of its checks are worth
+;; keeping, so silence just that one.
+(advice-add 'package-lint--check-eval-after-load :override #'ignore)
+
 (setq eldev-project-main-file "curry-mode.el")
