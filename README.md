@@ -19,15 +19,14 @@ server.
 
 ## Features
 
-- Tree-sitter based font-locking (4 levels) for `.hs`, `.lhs`, `.hsc`, and `.hs-boot` files
+- Tree-sitter based font-locking (4 levels) for `.hs`, `.hsc`, and `.hs-boot` files
 - Tree-sitter based indentation with cycle-indent and shift-region support
 - Auto-detection of indentation offset from existing code
 - Navigation (`beginning-of-defun`, `end-of-defun`, `forward-sexp`, sentence movement with `M-a`/`M-e`)
 - Imenu with categories for Functions, Types, Classes, Instances, and Imports
-- Toggling between `.hs` and `.lhs` via `ff-find-other-file` (`C-c C-a`)
 - GHCi REPL integration (`curry-repl`) with tree-sitter input fontification
 - Comment support: `fill-paragraph` (`M-q`), comment continuation (`M-j`), and `comment-dwim` (`M-;`)
-- Electric indentation and electric pairs (parentheses, brackets, braces, backticks, quotes)
+- Electric indentation and electric pairs (parentheses, brackets, braces, double quotes)
 - Cabal file editing (`curry-cabal-mode`) with font-lock, indentation, imenu, and `cabal-fmt` integration
 - Cabal build commands (`curry-cabal-interaction-mode`) -- build, test, run, clean, repl, haddock
 - Easy installation of the Haskell tree-sitter grammar via `M-x curry-install-grammars`
@@ -40,18 +39,23 @@ server.
 
 ### From source
 
-Requires Emacs 29.1+ (for `:vc` support in `use-package`).
+Requires Emacs 29.1+ built with libtree-sitter 0.25 or newer.
+
+On Emacs 30+:
 
 ```emacs-lisp
 (use-package curry-mode
   :vc (:url "https://github.com/tmcgilchrist/curry-mode" :rev :newest))
 ```
 
+On Emacs 29, use `M-x package-vc-install RET https://github.com/tmcgilchrist/curry-mode`.
+
 ### Grammar
 
-curry-mode uses a fork of the Haskell tree-sitter grammar with ABI 14
-compatibility and bug fixes from [tek/tree-sitter-haskell](https://github.com/tek/tree-sitter-haskell).
-The grammar is installed automatically when needed, or manually via:
+curry-mode uses a fork of
+[tek/tree-sitter-haskell](https://github.com/tek/tree-sitter-haskell) that adds
+the generated parser files. The grammar is installed automatically when needed,
+or manually via:
 
 ```
 M-x curry-install-grammars
@@ -59,7 +63,7 @@ M-x curry-install-grammars
 
 ## Usage
 
-`curry-mode` activates automatically for `.hs`, `.lhs`, `.hsc`, and `.hs-boot`
+`curry-mode` activates automatically for `.hs`, `.hsc`, and `.hs-boot`
 files. `curry-cabal-mode` activates for `.cabal` files.
 
 To use with Eglot, ensure `haskell-language-server-wrapper` is on your PATH
@@ -505,7 +509,7 @@ for details on debugger features and capabilities.
 | Prettify symbols         | Yes                        | Yes                            |
 | Code folding (outline)   | Yes (Emacs 30+)            | No                             |
 | Import management        | Delegate to HLS            | Built-in                       |
-| Type at point            | Delegate to HLS            | Built-in (via GHCi)            |
+| Type at point            | HLS, or GHCi (`C-c C-t`)   | Built-in (via GHCi)            |
 
 ### The impact of LSP on major modes
 
@@ -528,7 +532,7 @@ eval plugin), rename, formatting, and diagnostics.
 | Indentation                  | Yes      | Yes       |
 | `treesit-thing-settings`     | No       | Yes       |
 | Sentence navigation (M-a/e)  | No       | Yes       |
-| Hybrid `forward-sexp`        | Yes      | Yes       |
+| Hybrid `forward-sexp`        | Yes      | Emacs 30  |
 | `outline-minor-mode` folding | No       | Yes       |
 
 ## Development

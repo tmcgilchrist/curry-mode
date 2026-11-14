@@ -65,15 +65,6 @@ Scans the buffer for the most common indentation step and sets
   :group 'curry
   :package-version '(curry-mode . "0.1.0"))
 
-(defcustom curry-other-file-alist
-  '(("\\.hs\\'" (".lhs"))
-    ("\\.lhs\\'" (".hs")))
-  "Associative list of alternate extensions to find.
-See `ff-other-file-alist' and `ff-find-other-file'."
-  :type '(repeat (list regexp (choice (repeat string) function)))
-  :group 'curry
-  :package-version '(curry-mode . "0.1.0"))
-
 (defcustom curry-prettify-symbols-alist
   '(("\\" . ?λ)
     ("->" . ?→)
@@ -120,30 +111,21 @@ in the echo area."
     (message "curry-mode %s" curry-version))
   curry-version)
 
-;; We pin a fork of tree-sitter-haskell rather than an upstream release,
-;; for two independent reasons, so raising the minimum Emacs version
-;; alone does not let us drop it:
-;;
-;; - ABI.  Upstream v0.24.x ships a parser generated at ABI 15, which
-;;   only loads when Emacs links against libtree-sitter 0.25 or newer.
-;;   That depends on how Emacs was built, not on its version, and many
-;;   Emacs 29 and 30 builds link an older library.  The fork commits a
-;;   parser regenerated at ABI 14, which every supported Emacs can load.
-;;
-;; - Fixes.  The fork tracks tek/tree-sitter-haskell, whose 2026 fixes
-;;   (typed holes, the hsc2hs dialect, tab handling and an aarch64
-;;   memory-corruption fix in the scanner) are not in any upstream
-;;   release yet.
-;;
-;; Move to an upstream tag once a release carries those fixes and
-;; libtree-sitter 0.25 is what Emacs builds commonly link against.
+;; A fork of tek/tree-sitter-haskell that adds the generated parser
+;; files.  It follows a branch until there is a tagged release (see
+;; ROADMAP.md).
 (defconst curry-grammar-recipes
   '((haskell "https://github.com/tmcgilchrist/tree-sitter-haskell"
-             "curry-mode/tek-main-abi14"
+             "tek-main-abi-15"
              "src"))
   "Tree-sitter grammar recipe for Haskell.
 Each entry is a list of (LANGUAGE URL REV SOURCE-DIR).
 Suitable for use as the value of `treesit-language-source-alist'.")
+
+(defun curry--check-treesit-abi ()
+  "Signal an error unless Emacs can load ABI 15 grammars."
+  (when (< (treesit-library-abi-version) 15)
+    (error "The curry-mode grammars need libtree-sitter 0.25 or newer")))
 
 (defun curry-install-grammars (&optional force)
   "Install required language grammars if not already available.
@@ -241,8 +223,8 @@ The return value is suitable for `treesit-font-lock-settings'."
 
    :language language
    :feature 'definition
-   `(;; Function declarations
-     (decl
+   `(;; Function declarations (`decl' itself has no fields)
+     (decl/function
       name: (variable) @font-lock-function-name-face)
      ;; Type signatures
      (decl/signature
@@ -922,7 +904,6 @@ The information is also copied to the kill ring."
 
 (defvar curry-base-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c C-a") #'ff-find-other-file)
     (define-key map (kbd "C-c C-c") #'compile)
     (define-key map (kbd "M-g i") #'curry-jump-to-imports)
     (define-key map (kbd "C-c >") #'curry-shift-region-right)
@@ -979,6 +960,8 @@ The information is also copied to the kill ring."
 (defun curry--setup-mode (language)
   "Set up tree-sitter font-lock, indentation, and navigation for LANGUAGE.
 Called from `curry-mode' to configure the language-specific parts."
+  (curry--check-treesit-abi)
+
   ;; Offer to install missing grammars
   (when-let* ((missing (seq-filter
                         (lambda (r)
@@ -1092,9 +1075,6 @@ This mode is not intended to be used directly.  Use `curry-mode'."
                 (cons curry--defun-type-regexp
                       #'curry--defun-valid-p)))
 
-  ;; ff-find-other-file
-  (setq-local ff-other-file-alist curry-other-file-alist)
-
   ;; Prettify symbols (users enable prettify-symbols-mode via hooks)
   (setq-local prettify-symbols-alist (curry--prettify-symbols-alist)))
 
@@ -1114,7 +1094,6 @@ This mode is not intended to be used directly.  Use `curry-mode'."
 ;;;###autoload
 (progn
   (add-to-list 'auto-mode-alist '("\\.hs\\'" . curry-mode))
-  (add-to-list 'auto-mode-alist '("\\.lhs\\'" . curry-mode))
   (add-to-list 'auto-mode-alist '("\\.hsc\\'" . curry-mode))
   (add-to-list 'auto-mode-alist '("\\.hs-boot\\'" . curry-mode)))
 

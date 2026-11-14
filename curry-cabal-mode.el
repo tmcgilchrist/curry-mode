@@ -78,6 +78,7 @@ Formatting uses `curry-cabal-format-command'."
 
 ;;; Grammar installation
 
+;; Follows a branch until there is a tagged release (see ROADMAP.md).
 (defconst curry-cabal-grammar-recipes
   '((cabal "https://gitlab.com/tmcgilchrist/tree-sitter-cabal.git"
            "main"
@@ -266,6 +267,8 @@ For sections, returns the section type and its name if present."
   "Major mode for editing Cabal package description files.
 
 \\{curry-cabal-mode-map}"
+  (when (< (treesit-library-abi-version) 15)
+    (error "The cabal grammar needs libtree-sitter 0.25 or newer"))
   (unless (treesit-ready-p 'cabal)
     (when (y-or-n-p
            "Cabal tree-sitter grammar is not installed.  Install now?")
