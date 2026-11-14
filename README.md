@@ -428,7 +428,7 @@ Available commands (all under the `C-c C-d` prefix):
 | `C-c C-d c` | `curry-cabal-clean`              | Clean build artifacts            |
 | `C-c C-d i` | `curry-cabal-repl`               | Launch `cabal repl`              |
 | `C-c C-d h` | `curry-cabal-haddock`            | Generate documentation           |
-| `C-c C-d f` | `curry-cabal-format`             | Run `cabal-fmt` on .cabal file   |
+| `C-c C-d f` | `curry-cabal-format`             | Format the project's .cabal file |
 | `C-c C-d d` | `curry-cabal-command`            | Run arbitrary cabal command      |
 | `C-c C-d .` | `curry-cabal-find-cabal-file`    | Jump to nearest `.cabal` file    |
 | `C-c C-d p` | `curry-cabal-find-cabal-project` | Jump to nearest `cabal.project`  |
