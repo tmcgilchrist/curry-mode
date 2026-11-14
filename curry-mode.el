@@ -65,15 +65,6 @@ Scans the buffer for the most common indentation step and sets
   :group 'curry
   :package-version '(curry-mode . "0.1.0"))
 
-(defcustom curry-other-file-alist
-  '(("\\.hs\\'" (".lhs"))
-    ("\\.lhs\\'" (".hs")))
-  "Associative list of alternate extensions to find.
-See `ff-other-file-alist' and `ff-find-other-file'."
-  :type '(repeat (list regexp (choice (repeat string) function)))
-  :group 'curry
-  :package-version '(curry-mode . "0.1.0"))
-
 (defcustom curry-prettify-symbols-alist
   '(("\\" . ?λ)
     ("->" . ?→)
@@ -913,7 +904,6 @@ The information is also copied to the kill ring."
 
 (defvar curry-base-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c C-a") #'ff-find-other-file)
     (define-key map (kbd "C-c C-c") #'compile)
     (define-key map (kbd "M-g i") #'curry-jump-to-imports)
     (define-key map (kbd "C-c >") #'curry-shift-region-right)
@@ -1085,9 +1075,6 @@ This mode is not intended to be used directly.  Use `curry-mode'."
                 (cons curry--defun-type-regexp
                       #'curry--defun-valid-p)))
 
-  ;; ff-find-other-file
-  (setq-local ff-other-file-alist curry-other-file-alist)
-
   ;; Prettify symbols (users enable prettify-symbols-mode via hooks)
   (setq-local prettify-symbols-alist (curry--prettify-symbols-alist)))
 
@@ -1107,7 +1094,6 @@ This mode is not intended to be used directly.  Use `curry-mode'."
 ;;;###autoload
 (progn
   (add-to-list 'auto-mode-alist '("\\.hs\\'" . curry-mode))
-  (add-to-list 'auto-mode-alist '("\\.lhs\\'" . curry-mode))
   (add-to-list 'auto-mode-alist '("\\.hsc\\'" . curry-mode))
   (add-to-list 'auto-mode-alist '("\\.hs-boot\\'" . curry-mode)))
 

@@ -19,12 +19,11 @@ server.
 
 ## Features
 
-- Tree-sitter based font-locking (4 levels) for `.hs`, `.lhs`, `.hsc`, and `.hs-boot` files
+- Tree-sitter based font-locking (4 levels) for `.hs`, `.hsc`, and `.hs-boot` files
 - Tree-sitter based indentation with cycle-indent and shift-region support
 - Auto-detection of indentation offset from existing code
 - Navigation (`beginning-of-defun`, `end-of-defun`, `forward-sexp`, sentence movement with `M-a`/`M-e`)
 - Imenu with categories for Functions, Types, Classes, Instances, and Imports
-- Toggling between `.hs` and `.lhs` via `ff-find-other-file` (`C-c C-a`)
 - GHCi REPL integration (`curry-repl`) with tree-sitter input fontification
 - Comment support: `fill-paragraph` (`M-q`), comment continuation (`M-j`), and `comment-dwim` (`M-;`)
 - Electric indentation and electric pairs (parentheses, brackets, braces, backticks, quotes)
@@ -60,7 +59,7 @@ M-x curry-install-grammars
 
 ## Usage
 
-`curry-mode` activates automatically for `.hs`, `.lhs`, `.hsc`, and `.hs-boot`
+`curry-mode` activates automatically for `.hs`, `.hsc`, and `.hs-boot`
 files. `curry-cabal-mode` activates for `.cabal` files.
 
 To use with Eglot, ensure `haskell-language-server-wrapper` is on your PATH
