@@ -415,6 +415,41 @@ library
         (expect (buffer-substring-no-properties (point) (line-end-position))
                 :to-equal "executable my-exe")))))
 
+(describe "curry-cabal-mode with merge conflict markers"
+  ;; tree-sitter-cabal parses the markers as ERROR nodes; the rest of
+  ;; the file still parses.
+  (before-all
+    (curry-test-skip-unless-grammar 'cabal))
+
+  (it "stays in curry-cabal-mode and still lists the sections"
+    (with-temp-buffer
+      (insert "cabal-version: 2.4\nname: a\n\nlibrary\n  exposed-modules: A\n"
+              "<<<<<<< HEAD\n  build-depends: base, text\n=======\n"
+              "  build-depends: base, bytestring\n>>>>>>> feature\n\n"
+              "executable a\n  main-is: Main.hs\n")
+      (curry-cabal-mode)
+      (font-lock-ensure)
+      (expect major-mode :to-be 'curry-cabal-mode)
+      (expect (mapcar #'car (treesit-simple-imenu))
+              :to-equal '("Library" "Executable"))))
+
+  (it "parses cleanly once the conflict is resolved"
+    (with-temp-buffer
+      (insert "cabal-version: 2.4\nname: a\n\nlibrary\n"
+              "<<<<<<< HEAD\n  build-depends: base, text\n=======\n"
+              "  build-depends: base, bytestring\n>>>>>>> feature\n")
+      (curry-cabal-mode)
+      (font-lock-ensure)
+      (goto-char (point-min))
+      (while (re-search-forward
+              "^\\(<<<<<<<.*\\|=======\\|>>>>>>>.*\\)\n\\(?:  build-depends: base, bytestring\n\\)?"
+              nil t)
+        (replace-match ""))
+      (font-lock-ensure)
+      (expect (buffer-string)
+              :to-equal "cabal-version: 2.4\nname: a\n\nlibrary\n  build-depends: base, text\n")
+      (expect (treesit-query-capture 'cabal "(ERROR) @e") :to-be nil))))
+
 (describe "curry-cabal-mode formatting"
   ;; These run standard Unix tools in place of a real formatter, so they
   ;; exercise the plumbing without needing cabal-fmt or cabal-gild.
@@ -438,6 +473,37 @@ library
         (goto-char 5)
         (curry-cabal-format-buffer)
         (expect (point) :to-equal 5))))
+
+  (it "leaves an already formatted buffer unmodified"
+    (let ((curry-cabal-format-command '("cat")))
+      (with-curry-cabal-buffer "
+        cabal-version: 2.4
+        name: my-package"
+        (set-buffer-modified-p nil)
+        (curry-cabal-format-buffer)
+        (expect (buffer-modified-p) :to-be nil))))
+
+  (it "keeps markers on the text they were on"
+    ;; Upcasing only the first line must not move a marker on the second.
+    (let ((curry-cabal-format-command '("sed" "1s/cabal/CABAL/")))
+      (with-curry-cabal-buffer "
+        cabal-version: 2.4
+        name: my-package"
+        (search-forward "my-package")
+        (let ((marker (copy-marker (match-beginning 0))))
+          (goto-char (point-min))
+          (curry-cabal-format-buffer)
+          (expect (buffer-substring marker (+ marker 10))
+                  :to-equal "my-package")))))
+
+  (it "keeps the command's stderr out of the buffer"
+    (let ((curry-cabal-format-command '("sh" "-c" "cat; echo warning >&2")))
+      (with-curry-cabal-buffer "
+        cabal-version: 2.4
+        name: my-package"
+        (let ((before (buffer-string)))
+          (curry-cabal-format-buffer)
+          (expect (buffer-string) :to-equal before)))))
 
   (it "leaves the buffer alone and reports output when the command fails"
     (let ((curry-cabal-format-command

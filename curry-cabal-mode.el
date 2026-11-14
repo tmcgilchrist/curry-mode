@@ -98,10 +98,38 @@ With prefix argument FORCE, reinstall even if already installed."
 
 ;;; Formatting
 
+(defconst curry-cabal--format-max-secs 1
+  "Seconds `curry-cabal-format-buffer' may spend diffing the output.")
+
+;; A primitive taking a buffer since Emacs 31; older versions use the
+;; `replace-buffer-contents' fallback below.
+(declare-function replace-region-contents "editfns.c")
+
+(defun curry-cabal--replace-text (source)
+  "Replace the current buffer's text with that of buffer SOURCE.
+Only the parts that differ are replaced, so point and markers stay on
+the same text, and nothing happens when the texts are equal.  When
+diffing takes longer than `curry-cabal--format-max-secs', the whole
+text is replaced instead, and point and the window start are put back
+at their old positions."
+  (let ((case-fold-search nil)
+        (pos (point))
+        (start (window-start)))
+    (unless (or (zerop (compare-buffer-substrings nil nil nil source nil nil))
+                (if (>= emacs-major-version 31)
+                    (replace-region-contents (point-min) (point-max) source
+                                             curry-cabal--format-max-secs)
+                  (with-suppressed-warnings ((obsolete replace-buffer-contents))
+                    (replace-buffer-contents source
+                                             curry-cabal--format-max-secs))))
+      (goto-char (min pos (point-max)))
+      (set-window-start nil start))))
+
 (defun curry-cabal-format-buffer ()
   "Format the current buffer using `curry-cabal-format-command'.
-Pipes the buffer content through the command and replaces the
-buffer text with the formatted output, preserving point."
+Pipe the buffer through the command and replace only the text that
+changed, so point and markers stay put.  The command's stderr is kept
+out of the buffer and shown only if it fails."
   (interactive)
   (let ((program (car curry-cabal-format-command))
         (args (cdr curry-cabal-format-command)))
@@ -109,22 +137,17 @@ buffer text with the formatted output, preserving point."
       (user-error "Cannot format: %s is not installed (see `%s')"
                   program 'curry-cabal-format-command))
     (let ((outbuf (generate-new-buffer " *curry-cabal-format*"))
-          (orig-point (point))
-          (orig-window-start (window-start)))
+          (errfile (make-temp-file "curry-cabal-format-err")))
       (unwind-protect
-          (let ((exit-code (apply #'call-process-region (point-min) (point-max)
-                                  program nil outbuf nil args)))
-            (if (zerop exit-code)
-                (progn
-                  (erase-buffer)
-                  (insert-buffer-substring outbuf)
-                  (goto-char (min orig-point (point-max)))
-                  (set-window-start (selected-window) orig-window-start))
-              (user-error "Formatting with %s failed: %s"
-                          program
-                          (with-current-buffer outbuf
-                            (string-trim (buffer-string))))))
-        (kill-buffer outbuf)))))
+          (if (zerop (apply #'call-process-region (point-min) (point-max)
+                            program nil (list outbuf errfile) nil args))
+              (curry-cabal--replace-text outbuf)
+            (user-error "Formatting with %s failed: %s" program
+                        (with-temp-buffer
+                          (insert-file-contents errfile)
+                          (string-trim (buffer-string)))))
+        (kill-buffer outbuf)
+        (delete-file errfile)))))
 
 (defun curry-cabal--format-before-save ()
   "Format the buffer before saving if `curry-cabal-format-on-save' is non-nil."
@@ -276,12 +299,7 @@ For sections, returns the section type and its name if present."
     (unless (treesit-ready-p 'cabal)
       (error "Cannot activate curry-cabal-mode without the cabal grammar")))
 
-  (condition-case err
-      (treesit-parser-create 'cabal)
-    (treesit-error
-     (message "curry-cabal: grammar failed to parse (possibly merge \
-conflict markers?): %s" err)
-     (fundamental-mode)))
+  (treesit-parser-create 'cabal)
 
   ;; Comments
   (setq-local comment-start "-- ")

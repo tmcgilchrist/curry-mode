@@ -37,6 +37,8 @@
 
 (require 'cl-lib)
 
+(declare-function curry-cabal-format-buffer "curry-cabal-mode")
+
 (defgroup curry-cabal-interaction nil
   "Cabal build system interaction for curry-mode."
   :prefix "curry-cabal-interaction-"
@@ -76,6 +78,12 @@ or signals an error if none is found."
                                    (directory-files d nil (wildcard-to-regexp pattern) t)))))
                (file-name-as-directory (expand-file-name found))))
            curry-cabal-project-root-files))
+
+(defun curry-cabal--cabal-files (dir &optional full)
+  "Return the .cabal files in DIR, as absolute names when FULL is non-nil.
+Leave out dotfiles, such as the `.#name.cabal' lock file Emacs makes
+while a .cabal file has unsaved changes."
+  (directory-files dir full "\\`[^.].*\\.cabal\\'" t))
 
 ;;; Running cabal commands
 
@@ -142,13 +150,22 @@ With a prefix argument, prompt for TARGET component."
 
 ;;;###autoload
 (defun curry-cabal-format ()
-  "Run `cabal-fmt' on the project's .cabal file."
+  "Format the project's .cabal file with `curry-cabal-format-command'.
+Visit the file, format it as `curry-cabal-format-buffer' does, and
+save it, unless its buffer already had unsaved changes."
   (interactive)
-  (let* ((default-directory (curry-cabal--project-root))
-         (cabal-file (car (directory-files default-directory nil "\\.cabal\\'" t))))
-    (if cabal-file
-        (compile (format "cabal-fmt -i %s" (shell-quote-argument cabal-file)))
-      (user-error "No .cabal file found in %s" default-directory))))
+  (require 'curry-cabal-mode)
+  (let* ((root (curry-cabal--project-root))
+         (cabal-file (car (curry-cabal--cabal-files root t))))
+    (unless cabal-file
+      (user-error "No .cabal file found in %s" root))
+    (with-current-buffer (find-file-noselect cabal-file)
+      (let ((unsaved (buffer-modified-p)))
+        (curry-cabal-format-buffer)
+        (if unsaved
+            (message "Formatted %s; not saved, as it had unsaved changes"
+                     (buffer-name))
+          (save-buffer))))))
 
 ;;;###autoload
 (defun curry-cabal-update ()
@@ -181,9 +198,9 @@ The command string is passed as-is, not shell-quoted."
          (found (locate-dominating-file
                  dir
                  (lambda (d)
-                   (directory-files d nil "\\.cabal\\'" t)))))
+                   (curry-cabal--cabal-files d)))))
     (if found
-        (let ((cabal-file (car (directory-files found t "\\.cabal\\'"))))
+        (let ((cabal-file (car (curry-cabal--cabal-files found t))))
           (find-file cabal-file))
       (user-error "No .cabal file found above %s" dir))))
 
