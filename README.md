@@ -26,7 +26,7 @@ server.
 - Imenu with categories for Functions, Types, Classes, Instances, and Imports
 - GHCi REPL integration (`curry-repl`) with tree-sitter input fontification
 - Comment support: `fill-paragraph` (`M-q`), comment continuation (`M-j`), and `comment-dwim` (`M-;`)
-- Electric indentation and electric pairs (parentheses, brackets, braces, backticks, quotes)
+- Electric indentation and electric pairs (parentheses, brackets, braces, double quotes)
 - Cabal file editing (`curry-cabal-mode`) with font-lock, indentation, imenu, and `cabal-fmt` integration
 - Cabal build commands (`curry-cabal-interaction-mode`) -- build, test, run, clean, repl, haddock
 - Easy installation of the Haskell tree-sitter grammar via `M-x curry-install-grammars`
@@ -39,12 +39,16 @@ server.
 
 ### From source
 
-Requires Emacs 29.1+ (for `:vc` support in `use-package`).
+Requires Emacs 29.1+ built with libtree-sitter 0.25 or newer.
+
+On Emacs 30+:
 
 ```emacs-lisp
 (use-package curry-mode
   :vc (:url "https://github.com/tmcgilchrist/curry-mode" :rev :newest))
 ```
+
+On Emacs 29, use `M-x package-vc-install RET https://github.com/tmcgilchrist/curry-mode`.
 
 ### Grammar
 
@@ -505,7 +509,7 @@ for details on debugger features and capabilities.
 | Prettify symbols         | Yes                        | Yes                            |
 | Code folding (outline)   | Yes (Emacs 30+)            | No                             |
 | Import management        | Delegate to HLS            | Built-in                       |
-| Type at point            | Delegate to HLS            | Built-in (via GHCi)            |
+| Type at point            | HLS, or GHCi (`C-c C-t`)   | Built-in (via GHCi)            |
 
 ### The impact of LSP on major modes
 
@@ -528,7 +532,7 @@ eval plugin), rename, formatting, and diagnostics.
 | Indentation                  | Yes      | Yes       |
 | `treesit-thing-settings`     | No       | Yes       |
 | Sentence navigation (M-a/e)  | No       | Yes       |
-| Hybrid `forward-sexp`        | Yes      | Yes       |
+| Hybrid `forward-sexp`        | Yes      | Emacs 30  |
 | `outline-minor-mode` folding | No       | Yes       |
 
 ## Development
