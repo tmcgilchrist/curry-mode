@@ -299,12 +299,7 @@ For sections, returns the section type and its name if present."
     (unless (treesit-ready-p 'cabal)
       (error "Cannot activate curry-cabal-mode without the cabal grammar")))
 
-  (condition-case err
-      (treesit-parser-create 'cabal)
-    (treesit-error
-     (message "curry-cabal: grammar failed to parse (possibly merge \
-conflict markers?): %s" err)
-     (fundamental-mode)))
+  (treesit-parser-create 'cabal)
 
   ;; Comments
   (setq-local comment-start "-- ")

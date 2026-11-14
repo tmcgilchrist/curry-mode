@@ -415,6 +415,41 @@ library
         (expect (buffer-substring-no-properties (point) (line-end-position))
                 :to-equal "executable my-exe")))))
 
+(describe "curry-cabal-mode with merge conflict markers"
+  ;; tree-sitter-cabal parses the markers as ERROR nodes; the rest of
+  ;; the file still parses.
+  (before-all
+    (curry-test-skip-unless-grammar 'cabal))
+
+  (it "stays in curry-cabal-mode and still lists the sections"
+    (with-temp-buffer
+      (insert "cabal-version: 2.4\nname: a\n\nlibrary\n  exposed-modules: A\n"
+              "<<<<<<< HEAD\n  build-depends: base, text\n=======\n"
+              "  build-depends: base, bytestring\n>>>>>>> feature\n\n"
+              "executable a\n  main-is: Main.hs\n")
+      (curry-cabal-mode)
+      (font-lock-ensure)
+      (expect major-mode :to-be 'curry-cabal-mode)
+      (expect (mapcar #'car (treesit-simple-imenu))
+              :to-equal '("Library" "Executable"))))
+
+  (it "parses cleanly once the conflict is resolved"
+    (with-temp-buffer
+      (insert "cabal-version: 2.4\nname: a\n\nlibrary\n"
+              "<<<<<<< HEAD\n  build-depends: base, text\n=======\n"
+              "  build-depends: base, bytestring\n>>>>>>> feature\n")
+      (curry-cabal-mode)
+      (font-lock-ensure)
+      (goto-char (point-min))
+      (while (re-search-forward
+              "^\\(<<<<<<<.*\\|=======\\|>>>>>>>.*\\)\n\\(?:  build-depends: base, bytestring\n\\)?"
+              nil t)
+        (replace-match ""))
+      (font-lock-ensure)
+      (expect (buffer-string)
+              :to-equal "cabal-version: 2.4\nname: a\n\nlibrary\n  build-depends: base, text\n")
+      (expect (treesit-query-capture 'cabal "(ERROR) @e") :to-be nil))))
+
 (describe "curry-cabal-mode formatting"
   ;; These run standard Unix tools in place of a real formatter, so they
   ;; exercise the plumbing without needing cabal-fmt or cabal-gild.
