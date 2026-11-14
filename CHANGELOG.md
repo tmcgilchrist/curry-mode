@@ -4,7 +4,7 @@
      so the line-length and duplicate-heading rules don't fit this file. -->
 <!-- markdownlint-disable MD013 MD024 -->
 
-## main (unreleased)
+## 0.1.0 (2026-11-14)
 
 Initial release. Requires Emacs 29.1 or newer, linked against libtree-sitter 0.25 or newer.
 
