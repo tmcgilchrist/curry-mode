@@ -55,4 +55,31 @@
         (expect 'curry--check-grammar-compatibility
                 :to-have-been-called)))))
 
+(describe "font-lock queries"
+  ;; A query that fails to compile silently drops its feature's faces.
+
+  (it "compile for every curry-mode feature"
+    (curry-test-skip-unless-grammar)
+    (expect (seq-keep (lambda (setting)
+                        (condition-case err
+                            (progn (treesit-query-compile
+                                    'haskell (nth 0 setting) t)
+                                   nil)
+                          (treesit-query-error
+                           (list (nth 2 setting) (cdr err)))))
+                      (curry--font-lock-settings 'haskell))
+            :to-equal nil))
+
+  (it "compile for every curry-cabal-mode feature"
+    (curry-test-skip-unless-grammar 'cabal)
+    (expect (seq-keep (lambda (setting)
+                        (condition-case err
+                            (progn (treesit-query-compile
+                                    'cabal (nth 0 setting) t)
+                                   nil)
+                          (treesit-query-error
+                           (list (nth 2 setting) (cdr err)))))
+                      curry-cabal--font-lock-settings)
+            :to-equal nil)))
+
 ;;; curry-grammar-test.el ends here

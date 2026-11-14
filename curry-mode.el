@@ -241,8 +241,8 @@ The return value is suitable for `treesit-font-lock-settings'."
 
    :language language
    :feature 'definition
-   `(;; Function declarations
-     (decl
+   `(;; Function declarations (`decl' itself has no fields)
+     (decl/function
       name: (variable) @font-lock-function-name-face)
      ;; Type signatures
      (decl/signature
