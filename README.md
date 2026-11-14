@@ -569,6 +569,7 @@ tree-sitter mode with semantic features delegated to the language server.
 
 ## License
 
-Copyright (c) 2026 Tim McGilchrist and [contributors](https://github.com/tmcgilchrist/curry-mode).
+Copyright (c) 2026 Tim McGilchrist and [contributors](https://github.com/tmcgilchrist/curry-mode/graphs/contributors).
 
-Distributed under the GNU General Public License, version 3 or later.
+Distributed under the GNU General Public License, version 3 or later. See
+[LICENSE](LICENSE) for details.
