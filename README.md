@@ -571,6 +571,8 @@ Contributions are welcome. The codebase follows the architecture of
 [fsharp-ts-mode](https://github.com/bbatsov/fsharp-ts-mode) -- a thin
 tree-sitter mode with semantic features delegated to the language server.
 
+For ideas on what to work on next, see the [roadmap](ROADMAP.md).
+
 ## License
 
 Copyright (c) 2026 Tim McGilchrist and [contributors](https://github.com/tmcgilchrist/curry-mode/graphs/contributors).
