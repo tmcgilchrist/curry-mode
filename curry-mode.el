@@ -120,30 +120,21 @@ in the echo area."
     (message "curry-mode %s" curry-version))
   curry-version)
 
-;; We pin a fork of tree-sitter-haskell rather than an upstream release,
-;; for two independent reasons, so raising the minimum Emacs version
-;; alone does not let us drop it:
-;;
-;; - ABI.  Upstream v0.24.x ships a parser generated at ABI 15, which
-;;   only loads when Emacs links against libtree-sitter 0.25 or newer.
-;;   That depends on how Emacs was built, not on its version, and many
-;;   Emacs 29 and 30 builds link an older library.  The fork commits a
-;;   parser regenerated at ABI 14, which every supported Emacs can load.
-;;
-;; - Fixes.  The fork tracks tek/tree-sitter-haskell, whose 2026 fixes
-;;   (typed holes, the hsc2hs dialect, tab handling and an aarch64
-;;   memory-corruption fix in the scanner) are not in any upstream
-;;   release yet.
-;;
-;; Move to an upstream tag once a release carries those fixes and
-;; libtree-sitter 0.25 is what Emacs builds commonly link against.
+;; A fork of tek/tree-sitter-haskell that adds the generated parser
+;; files.  It follows a branch until there is a tagged release (see
+;; ROADMAP.md).
 (defconst curry-grammar-recipes
   '((haskell "https://github.com/tmcgilchrist/tree-sitter-haskell"
-             "curry-mode/tek-main-abi14"
+             "tek-main-abi-15"
              "src"))
   "Tree-sitter grammar recipe for Haskell.
 Each entry is a list of (LANGUAGE URL REV SOURCE-DIR).
 Suitable for use as the value of `treesit-language-source-alist'.")
+
+(defun curry--check-treesit-abi ()
+  "Signal an error unless Emacs can load ABI 15 grammars."
+  (when (< (treesit-library-abi-version) 15)
+    (error "The curry-mode grammars need libtree-sitter 0.25 or newer")))
 
 (defun curry-install-grammars (&optional force)
   "Install required language grammars if not already available.
@@ -979,6 +970,8 @@ The information is also copied to the kill ring."
 (defun curry--setup-mode (language)
   "Set up tree-sitter font-lock, indentation, and navigation for LANGUAGE.
 Called from `curry-mode' to configure the language-specific parts."
+  (curry--check-treesit-abi)
+
   ;; Offer to install missing grammars
   (when-let* ((missing (seq-filter
                         (lambda (r)

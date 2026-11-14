@@ -55,6 +55,25 @@
         (expect 'curry--check-grammar-compatibility
                 :to-have-been-called)))))
 
+(describe "tree-sitter library ABI"
+  (it "accepts a library that loads ABI 15 grammars"
+    (spy-on 'treesit-library-abi-version :and-return-value 15)
+    (expect (curry--check-treesit-abi) :not :to-throw))
+
+  (it "rejects an older library with an explanation"
+    (spy-on 'treesit-library-abi-version :and-return-value 14)
+    (expect (condition-case err
+                (progn (curry--check-treesit-abi) nil)
+              (error (cadr err)))
+            :to-match "libtree-sitter 0\\.25 or newer"))
+
+  (it "stops curry-cabal-mode on an older library"
+    (spy-on 'treesit-library-abi-version :and-return-value 14)
+    (expect (condition-case err
+                (with-temp-buffer (curry-cabal-mode) nil)
+              (error (cadr err)))
+            :to-match "libtree-sitter 0\\.25 or newer")))
+
 (describe "font-lock queries"
   ;; A query that fails to compile silently drops its feature's faces.
 

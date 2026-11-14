@@ -49,9 +49,10 @@ Requires Emacs 29.1+ (for `:vc` support in `use-package`).
 
 ### Grammar
 
-curry-mode uses a fork of the Haskell tree-sitter grammar with ABI 14
-compatibility and bug fixes from [tek/tree-sitter-haskell](https://github.com/tek/tree-sitter-haskell).
-The grammar is installed automatically when needed, or manually via:
+curry-mode uses a fork of
+[tek/tree-sitter-haskell](https://github.com/tek/tree-sitter-haskell) that adds
+the generated parser files. The grammar is installed automatically when needed,
+or manually via:
 
 ```
 M-x curry-install-grammars
