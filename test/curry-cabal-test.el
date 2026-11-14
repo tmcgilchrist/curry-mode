@@ -439,6 +439,37 @@ library
         (curry-cabal-format-buffer)
         (expect (point) :to-equal 5))))
 
+  (it "leaves an already formatted buffer unmodified"
+    (let ((curry-cabal-format-command '("cat")))
+      (with-curry-cabal-buffer "
+        cabal-version: 2.4
+        name: my-package"
+        (set-buffer-modified-p nil)
+        (curry-cabal-format-buffer)
+        (expect (buffer-modified-p) :to-be nil))))
+
+  (it "keeps markers on the text they were on"
+    ;; Upcasing only the first line must not move a marker on the second.
+    (let ((curry-cabal-format-command '("sed" "1s/cabal/CABAL/")))
+      (with-curry-cabal-buffer "
+        cabal-version: 2.4
+        name: my-package"
+        (search-forward "my-package")
+        (let ((marker (copy-marker (match-beginning 0))))
+          (goto-char (point-min))
+          (curry-cabal-format-buffer)
+          (expect (buffer-substring marker (+ marker 10))
+                  :to-equal "my-package")))))
+
+  (it "keeps the command's stderr out of the buffer"
+    (let ((curry-cabal-format-command '("sh" "-c" "cat; echo warning >&2")))
+      (with-curry-cabal-buffer "
+        cabal-version: 2.4
+        name: my-package"
+        (let ((before (buffer-string)))
+          (curry-cabal-format-buffer)
+          (expect (buffer-string) :to-equal before)))))
+
   (it "leaves the buffer alone and reports output when the command fails"
     (let ((curry-cabal-format-command
            '("sh" "-c" "cat >/dev/null; echo bad field >&2; exit 1")))
