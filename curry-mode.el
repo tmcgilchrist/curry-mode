@@ -712,11 +712,8 @@ The top-level `imports' node always start with an `import' node."
 
 (defun curry--inside-import-p ()
   "Return non-nil if point is inside an `import' node."
-  (when-let* ((node (treesit-node-at (point) 'haskell)))
-    (treesit-parent-until
-     node
-     (lambda (n) (string= "import" (treesit-node-type n)))
-     t)))
+  (when-let* ((node (curry--imports-node)))
+    (<= (treesit-node-start node) (point) (treesit-node-end node))))
 
 (defun curry-jump-to-imports ()
   "Jump to the first `import' declaration in the buffer.
