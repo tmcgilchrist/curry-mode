@@ -711,11 +711,8 @@ Uses tree-sitter sentence navigation to select the entire statement
 
 (defun curry--inside-import-p ()
   "Return non-nil if point is inside an `import' node."
-  (when-let* ((node (treesit-node-at (point) 'haskell)))
-    (treesit-parent-until
-     node
-     (lambda (n) (string= "import" (treesit-node-type n)))
-     t)))
+  (when-let* ((imports-node (treesit-node-child-by-field-name (treesit-buffer-root-node 'haskell) "imports")))
+    (<= (treesit-node-start imports-node) (point) (treesit-node-end imports-node))))
 
 (defun curry-jump-to-imports ()
   "Jump to the first `import' declaration in the buffer.
