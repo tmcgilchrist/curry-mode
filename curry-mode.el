@@ -127,18 +127,15 @@ Suitable for use as the value of `treesit-language-source-alist'.")
   (when (< (treesit-library-abi-version) 15)
     (error "The curry-mode grammars need libtree-sitter 0.25 or newer")))
 
-(defun curry-install-grammars (&optional force)
-  "Install required language grammars if not already available.
+(defun curry-install-grammar (&optional force)
+  "Install required language grammar if not already available.
 With prefix argument FORCE, reinstall grammars even if they are
-already installed.  This is useful after upgrading curry-mode to a
-version that requires a newer grammar."
+already installed."
   (interactive "P")
-  (dolist (recipe curry-grammar-recipes)
-    (let ((grammar (car recipe)))
-      (when (or force (not (treesit-language-available-p grammar nil)))
-        (message "Installing %s tree-sitter grammar..." grammar)
-        (let ((treesit-language-source-alist curry-grammar-recipes))
-          (treesit-install-language-grammar grammar))))))
+  (when (or force (not (treesit-language-available-p 'haskell nil)))
+    (message "Installing haskell tree-sitter grammar...")
+    (let ((treesit-language-source-alist curry-grammar-recipes))
+      (treesit-install-language-grammar 'haskell))))
 
 (defconst curry--grammar-probes
   '(("type X = Int" . "type_synonym")
@@ -177,7 +174,7 @@ misparses the constructs it predates."
       (display-warning
        'curry-mode
        "The installed tree-sitter Haskell grammar appears older than the \
-version curry-mode requires.  Run C-u M-x curry-install-grammars to \
+version curry-mode requires.  Run C-u M-x curry-install-grammar to \
 reinstall it."))))
 
 ;;;; Language data
@@ -938,7 +935,7 @@ The information is also copied to the kill ring."
         ["Compile..." compile]
         ["Cycle indent function" curry-cycle-indent]
         ["Guess indent offset" curry-guess-indent-offset]
-        ["Install tree-sitter grammars" curry-install-grammars]))
+        ["Install tree-sitter grammars" curry-install-grammar]))
     map)
   "Keymap for `curry-mode'.")
 
@@ -976,7 +973,7 @@ Called from `curry-mode' to configure the language-specific parts."
                         curry-grammar-recipes)))
     (when (y-or-n-p
            "Haskell tree-sitter grammar is not installed.  Install now?")
-      (curry-install-grammars)))
+      (curry-install-grammar)))
 
   ;; Warn if the installed grammar is outdated
   (curry--check-grammar-compatibility)

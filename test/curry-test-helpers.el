@@ -70,7 +70,7 @@ LANGUAGE defaults to `haskell'.  Call from a `before-all' block."
       ('outdated
        (signal 'buttercup-pending
                "tree-sitter Haskell grammar is outdated (no `type_synonym' \
-node type); reinstall with M-x curry-install-grammars")))))
+node type); reinstall with M-x curry-install-grammar")))))
 
 (defun curry-test-skip-unless-emacs-30 ()
   "Mark the current suite pending unless `treesit-thing-settings' exists.
