@@ -746,12 +746,20 @@ held before the previous jump."
   `(,(rx bol
          (group-n 1 (+ (not (any ":" "\n"))))
          ":"
-         (group-n 2 (+ digit))
-         ":"
-         (group-n 3 (+ digit))
-         (or ": error" ": warning" "-"))
-    1 2 3)
+         (or
+          ;; FILE:LINE:COL: and FILE:LINE:COL-ENDCOL:
+          (seq (group-n 2 (+ digit)) ":" (group-n 3 (+ digit))
+               (? "-" (+ digit)))
+          ;; FILE:(LINE,COL)-(ENDLINE,ENDCOL): for multi-line spans
+          (seq "(" (group-n 2 (+ digit)) "," (group-n 3 (+ digit)) ")"
+               "-(" (+ digit) "," (+ digit) ")"))
+         ": "
+         (or "error" (group-n 4 "warning")))
+    1 2 3 (4))
   "Regexp matching GHC error/warning messages.
+The TYPE field `(4)' makes `compile' treat a message as a warning
+when group 4 matched and as an error otherwise, so the two get
+`compilation-warning-face' and `compilation-error-face'.
 Suitable for `compilation-error-regexp-alist-alist'.")
 
 (defun curry--setup-compilation ()

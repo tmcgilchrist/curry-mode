@@ -109,10 +109,8 @@ Used by `curry-repl-switch-to-source' to return to the source buffer.")
   "Keymap for `curry-repl-mode'.")
 
 (defvar curry-repl-font-lock-keywords
-  '(;; GHC errors
-    ("^\\([^ \t\n:]+\\):\\([0-9]+\\):\\([0-9]+\\): error:" (1 font-lock-warning-face))
-    ;; GHC warnings
-    ("^\\([^ \t\n:]+\\):\\([0-9]+\\):\\([0-9]+\\): warning:" (1 font-lock-warning-face))
+  '(;; GHC errors and warnings are highlighted by
+    ;; `compilation-shell-minor-mode', using `curry--compilation-error-regexp'.
     ;; Type display: "foo :: Int -> Int"
     ("^\\([a-z_][a-zA-Z0-9_']*\\) :: " (1 font-lock-function-name-face))
     ;; Kind display
@@ -120,7 +118,7 @@ Used by `curry-repl-switch-to-source' to return to the source buffer.")
     ;; GHCi commands
     ("^:[a-z]+" . font-lock-keyword-face))
   "Font-lock keywords for the GHCi REPL buffer.
-Highlights errors, warnings, type information, and GHCi commands.")
+Highlights type information and GHCi commands.")
 
 (define-derived-mode curry-repl-mode comint-mode "GHCi"
   "Major mode for interacting with GHCi.
@@ -137,7 +135,7 @@ Highlights errors, warnings, type information, and GHCi commands.")
 
   ;; Error navigation
   (setq-local compilation-error-regexp-alist
-              '(("^\\([^ \t\n:]+\\):\\([0-9]+\\):\\([0-9]+\\):" 1 2 3)))
+              (list curry--compilation-error-regexp))
   (compilation-shell-minor-mode)
 
   ;; Input history persistence
