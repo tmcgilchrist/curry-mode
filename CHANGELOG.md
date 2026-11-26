@@ -11,6 +11,7 @@
 - `curry-repl-root-function` chooses the directory the REPL starts in.
 - `curry-repl-program-name` defaults to `auto`, which runs `cabal repl`, `stack ghci` or `ghci` depending on the project around the current file. `"ghci"`, `"cabal repl"` and `"stack ghci"` are safe as directory-local values.
 - `cabal repl` loads the package containing the current file, so it starts in projects with several packages.
+- Each project root gets its own GHCi REPL, named `*GHCi: pkg*`, and source buffers send to the REPL of their own project.
 
 ### Bug fixes
 

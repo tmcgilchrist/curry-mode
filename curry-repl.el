@@ -92,7 +92,10 @@ current buffer's `default-directory'.  To use the current `project':
   :package-version '(curry-mode . "0.2.0"))
 
 (defcustom curry-repl-buffer-name "*GHCi*"
-  "Name of the GHCi REPL buffer."
+  "Base name of GHCi REPL buffers.
+Each project root gets its own REPL, named after the root's
+directory: \"*GHCi: pkg*\".  A REPL started outside any project
+uses this name as it is."
   :type 'string
   :group 'curry-repl
   :package-version '(curry-mode . "0.1.0"))
@@ -128,6 +131,11 @@ Set to nil to use only the basic REPL font-lock keywords for input."
   "Regexp matching GHCi prompts.
 Matches \"Prelude> \", \"Main> \", \"ghci> \", \"> \",
 \"Prelude Data.List> \", and \"*Main> \" style prompts.")
+
+(defvar-local curry-repl--root nil
+  "Project root of the REPL in this buffer, or nil for none.
+Source buffers find their REPL by comparing this with their own
+root, from `curry-repl-root-function'.")
 
 (defvar-local curry-repl--source-buffer nil
   "Source buffer from which the REPL was last invoked.
@@ -257,27 +265,66 @@ containing `stack.yaml' for \"stack ghci\", and nil for \"ghci\".
 See `curry-repl-program-name' for how `auto' chooses between them."
   (cdr (curry-repl--tool)))
 
+;;; Finding the REPL for a buffer
+
+(defun curry-repl--current-root ()
+  "Return the project root of the current buffer's REPL, or nil."
+  (if (derived-mode-p 'curry-repl-mode)
+      curry-repl--root
+    (when-let* ((root (funcall curry-repl-root-function)))
+      (file-name-as-directory (expand-file-name root)))))
+
+(defun curry-repl--find-buffer (root)
+  "Return the REPL buffer for ROOT, live process or not, or nil."
+  (seq-find (lambda (buffer)
+              (with-current-buffer buffer
+                (and (derived-mode-p 'curry-repl-mode)
+                     (equal curry-repl--root root))))
+            (buffer-list)))
+
+(defun curry-repl--buffer ()
+  "Return the current buffer's REPL buffer, or nil.
+In a REPL buffer, that is the buffer itself."
+  (if (derived-mode-p 'curry-repl-mode)
+      (current-buffer)
+    (curry-repl--find-buffer (curry-repl--current-root))))
+
+(defun curry-repl--buffer-name (root)
+  "Return a name for a new REPL buffer for ROOT.
+See `curry-repl-buffer-name'."
+  (generate-new-buffer-name
+   (if (null root)
+       curry-repl-buffer-name
+     (let ((project (file-name-nondirectory (directory-file-name root))))
+       (if (string-match "\\`\\*\\(.*\\)\\*\\'" curry-repl-buffer-name)
+           (format "*%s: %s*" (match-string 1 curry-repl-buffer-name) project)
+         (format "%s: %s" curry-repl-buffer-name project))))))
+
 ;;;###autoload
 (defun curry-repl-start ()
-  "Start a GHCi process in a new buffer.
-If a process is already running, switch to its buffer.
+  "Start a GHCi process for the current project, and return its buffer.
+If the project's REPL is already running, switch to its buffer.
 The process starts in the directory returned by
 `curry-repl-root-function', or in the current buffer's directory
-when that returns nil."
+when that returns nil.  Each root has its own REPL."
   (interactive)
-  (if (comint-check-proc curry-repl-buffer-name)
-      (pop-to-buffer curry-repl-buffer-name)
-    (let* ((dir (file-name-as-directory
-                 (or (funcall curry-repl-root-function) default-directory)))
-           (cmdlist (curry-repl--command))
-           (buffer (get-buffer-create curry-repl-buffer-name)))
-      ;; Enable the mode first, so hooks such as envrc's see DIR.
-      (with-current-buffer buffer
-        (setq default-directory dir)
-        (curry-repl-mode))
-      (apply #'make-comint-in-buffer
-             "GHCi" buffer (car cmdlist) nil (cdr cmdlist))
-      (pop-to-buffer buffer))))
+  (let* ((root (curry-repl--current-root))
+         (existing (curry-repl--find-buffer root)))
+    (if (comint-check-proc existing)
+        (progn (pop-to-buffer existing) existing)
+      (let ((dir (or root (file-name-as-directory default-directory)))
+            (cmdlist (curry-repl--command))
+            (buffer (or existing
+                        (get-buffer-create (curry-repl--buffer-name root)))))
+        ;; Enable the mode first, so hooks such as envrc's see DIR.
+        (with-current-buffer buffer
+          (setq default-directory dir)
+          (curry-repl-mode)
+          (setq curry-repl--root root))
+        (apply #'make-comint-in-buffer
+               "GHCi" buffer (car cmdlist) nil (cdr cmdlist))
+        (pop-to-buffer buffer)
+        buffer))))
 
 (defun curry-repl-switch-to-source ()
   "Switch from the REPL back to the source buffer that last invoked it."
@@ -294,16 +341,17 @@ If a REPL is already running, switch to it; otherwise start a new one.
 Use \\[curry-repl-switch-to-source] in the REPL to return."
   (interactive)
   (let ((source (current-buffer)))
-    (curry-repl-start)
-    (setq curry-repl--source-buffer source)))
+    (with-current-buffer (curry-repl-start)
+      (setq curry-repl--source-buffer source))))
 
 (defun curry-repl--process ()
-  "Return the REPL process, or nil if not running."
-  (get-buffer-process curry-repl-buffer-name))
+  "Return the process of the current buffer's REPL, or nil."
+  (when-let* ((buffer (curry-repl--buffer)))
+    (get-buffer-process buffer)))
 
 (defun curry-repl--ensure-running ()
-  "Start a GHCi REPL if one is not already running."
-  (unless (comint-check-proc curry-repl-buffer-name)
+  "Start the current buffer's REPL if it is not already running."
+  (unless (comint-check-proc (curry-repl--buffer))
     (save-window-excursion (curry-repl-start))))
 
 (defun curry-repl--send-string (string)
@@ -405,7 +453,8 @@ Defaults to the current buffer's file."
 (defun curry-repl-clear-buffer ()
   "Clear the GHCi REPL buffer."
   (interactive)
-  (with-current-buffer curry-repl-buffer-name
+  (with-current-buffer (or (curry-repl--buffer)
+                          (user-error "No GHCi REPL for this buffer"))
     (let ((inhibit-read-only t))
       (erase-buffer)
       (comint-send-input))))
@@ -413,7 +462,7 @@ Defaults to the current buffer's file."
 (defun curry-repl-interrupt ()
   "Interrupt the GHCi REPL process."
   (interactive)
-  (when (comint-check-proc curry-repl-buffer-name)
+  (when (comint-check-proc (curry-repl--buffer))
     (interrupt-process (curry-repl--process))))
 
 ;;; Minor mode for source buffers

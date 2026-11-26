@@ -176,6 +176,28 @@ Return the absolute name of the last one."
     (dolist (value '("rm -rf ~" "cabal repl --with-ghc=./evil" nil 42))
       (expect (curry-repl--safe-program-p value) :not :to-be-truthy))))
 
+(defun curry-repl-test--kill-repls ()
+  "Kill every REPL buffer, and any process in it."
+  (dolist (buffer (buffer-list))
+    (when (with-current-buffer buffer
+            (or (derived-mode-p 'curry-repl-mode)
+                (string-prefix-p "*GHCi" (buffer-name))))
+      (when-let* ((process (get-buffer-process buffer)))
+        (set-process-query-on-exit-flag process nil)
+        (delete-process process))
+      (kill-buffer buffer))))
+
+(defun curry-repl-test--leftover (root directory)
+  "Create a REPL buffer for ROOT, with no process, in DIRECTORY."
+  (with-current-buffer (get-buffer-create
+                        (curry-repl--buffer-name root))
+    (setq default-directory directory)
+    (let ((curry-repl-history-file nil)
+          (curry-repl-fontify-input nil))
+      (curry-repl-mode))
+    (setq curry-repl--root root)
+    (current-buffer)))
+
 (describe "curry-repl-start"
   :var (started-in)
   (before-each
@@ -189,8 +211,7 @@ Return the absolute name of the last one."
               (get-buffer buffer)))
     (spy-on 'pop-to-buffer))
   (after-each
-    (when (get-buffer curry-repl-buffer-name)
-      (kill-buffer curry-repl-buffer-name)))
+    (curry-repl-test--kill-repls))
 
   (it "starts the program in the directory from curry-repl-root-function"
     (let ((default-directory "/tmp/src/Data/")
@@ -238,11 +259,7 @@ Return the absolute name of the last one."
       (expect started-in :to-equal "/tmp/src/Data/")))
 
   (it "runs the mode hooks in the new directory before starting the program"
-    (with-current-buffer (get-buffer-create curry-repl-buffer-name)
-      (setq default-directory "/elsewhere/")
-      (let ((curry-repl-history-file nil)
-            (curry-repl-fontify-input nil))
-        (curry-repl-mode)))
+    (curry-repl-test--leftover "/tmp/" "/elsewhere/")
     (let* ((default-directory "/tmp/src/")
            (curry-repl-root-function (lambda () "/tmp/"))
            (curry-repl-history-file nil)
@@ -257,13 +274,106 @@ Return the absolute name of the last one."
       (expect hook-calls :to-equal '(("/tmp/" nil)))))
 
   (it "resets the directory of a REPL buffer left from an earlier session"
-    (with-current-buffer (get-buffer-create curry-repl-buffer-name)
-      (setq default-directory "/elsewhere/"))
-    (let ((default-directory "/tmp/src/")
+    (let ((leftover (curry-repl-test--leftover "/tmp/" "/elsewhere/"))
+          (default-directory "/tmp/src/")
           (curry-repl-root-function (lambda () "/tmp/"))
           (curry-repl-history-file nil)
           (curry-repl-fontify-input nil))
-      (curry-repl-start)
+      (expect (curry-repl-start) :to-be leftover)
       (expect started-in :to-equal "/tmp/"))))
+
+(defun curry-repl-test--start-in (root)
+  "Start the REPL from a buffer whose project root is ROOT."
+  (let ((default-directory "/nonexistent/")
+        (curry-repl-root-function (lambda () root))
+        (curry-repl-history-file nil)
+        (curry-repl-fontify-input nil))
+    (curry-repl-start)))
+
+(describe "one REPL per project"
+  (before-each
+    (spy-on 'make-comint-in-buffer
+            :and-call-fake (lambda (_name buffer &rest _) (get-buffer buffer)))
+    (spy-on 'pop-to-buffer))
+  (after-each
+    (curry-repl-test--kill-repls))
+
+  (it "names each REPL after its project root"
+    (expect (buffer-name (curry-repl-test--start-in "/work/alpha/"))
+            :to-equal "*GHCi: alpha*")
+    (expect (buffer-name (curry-repl-test--start-in "/work/beta"))
+            :to-equal "*GHCi: beta*"))
+
+  (it "uses curry-repl-buffer-name as it is when there is no root"
+    (expect (buffer-name (curry-repl-test--start-in nil))
+            :to-equal "*GHCi*"))
+
+  (it "keeps a custom buffer name without asterisks"
+    (let ((curry-repl-buffer-name "GHCi"))
+      (expect (buffer-name (curry-repl-test--start-in "/work/alpha/"))
+              :to-equal "GHCi: alpha")))
+
+  (it "gives different roots with the same directory name their own REPLs"
+    (let ((first (curry-repl-test--start-in "/work/pkg/"))
+          (second (curry-repl-test--start-in "/home/pkg/")))
+      (expect second :not :to-be first)
+      (expect (buffer-name second) :to-equal "*GHCi: pkg*<2>")))
+
+  (it "reuses the REPL buffer of the same root"
+    (expect (curry-repl-test--start-in "/work/alpha/")
+            :to-be (curry-repl-test--start-in "/work/alpha")))
+
+  (it "finds a REPL buffer from inside it"
+    (with-current-buffer (curry-repl-test--start-in "/work/alpha/")
+      (let ((curry-repl-root-function (lambda () "/work/beta/")))
+        (expect (curry-repl--buffer) :to-be (current-buffer)))))
+
+  (it "records the source buffer in that project's REPL"
+    (let ((curry-repl-history-file nil)
+          (curry-repl-fontify-input nil)
+          (default-directory "/nonexistent/"))
+      (with-temp-buffer
+        (let ((source (current-buffer))
+              (curry-repl-root-function (lambda () "/work/alpha/")))
+          (curry-repl-switch-to-repl)
+          (expect (buffer-local-value
+                   'curry-repl--source-buffer
+                   (curry-repl--find-buffer "/work/alpha/"))
+                  :to-be source))))))
+
+(defun curry-repl-test--send-from (root string)
+  "Send STRING to the REPL of ROOT, running `cat' as the REPL."
+  (with-temp-buffer
+    (let ((default-directory root)
+          (curry-repl-program-name "cat")
+          (curry-repl-program-args nil)
+          (curry-repl-root-function (lambda () default-directory))
+          (curry-repl-history-file nil)
+          (curry-repl-fontify-input nil))
+      (curry-repl--send-string string)
+      (let ((process (curry-repl--process)))
+        (set-process-query-on-exit-flag process nil)
+        (accept-process-output process 1)
+        (process-buffer process)))))
+
+(describe "sending to the project's REPL"
+  :var (roots)
+  (before-each
+    (setq roots (list (file-name-as-directory
+                       (file-truename (make-temp-file "curry-repl-a" t)))
+                      (file-name-as-directory
+                       (file-truename (make-temp-file "curry-repl-b" t)))))
+    (spy-on 'pop-to-buffer))
+  (after-each
+    (curry-repl-test--kill-repls)
+    (dolist (root roots) (delete-directory root t)))
+
+  (it "sends each buffer's input to the REPL of its own project"
+    (let ((a (curry-repl-test--send-from (nth 0 roots) "from-a"))
+          (b (curry-repl-test--send-from (nth 1 roots) "from-b")))
+      (expect a :not :to-be b)
+      (expect (with-current-buffer a (buffer-string)) :to-match "from-a")
+      (expect (with-current-buffer a (buffer-string)) :not :to-match "from-b")
+      (expect (with-current-buffer b (buffer-string)) :to-match "from-b"))))
 
 ;;; curry-repl-test.el ends here

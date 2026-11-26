@@ -366,6 +366,10 @@ REPL from the project around the current file:
 contains the current file, so it works in projects with several packages.
 `stack ghci` starts in the directory holding `stack.yaml`.
 
+Each project root gets its own REPL, named after the root's directory
+(`*GHCi: pkg*`), and commands in a source buffer go to the REPL of that
+buffer's project. Files outside any project share a single `*GHCi*`.
+
 To always run one command, set it to a string. `"ghci"`, `"cabal repl"`
 and `"stack ghci"` are also safe to set in `.dir-locals.el`.
 
@@ -377,7 +381,7 @@ and `"stack ghci"` are also safe to set in `.dir-locals.el`.
 (setq curry-repl-program-name "cabal repl"
       curry-repl-program-args '("test:spec"))
 
-;; Change the REPL buffer name
+;; Change the base name of REPL buffers ("*My-GHCi: pkg*")
 (setq curry-repl-buffer-name "*My-GHCi*")
 ```
 
