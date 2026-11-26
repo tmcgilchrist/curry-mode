@@ -4,6 +4,12 @@
      so the line-length and duplicate-heading rules don't fit this file. -->
 <!-- markdownlint-disable MD013 MD024 -->
 
+## Unreleased
+
+### Bug fixes
+
+- [#10](https://github.com/tmcgilchrist/curry-mode/issues/10): GHC warnings in `compile` output and the GHCi REPL are now treated as warnings, with `compilation-warning-face`, instead of as errors. GHC's `FILE:(LINE,COL)-(LINE,COL):` multi-line locations are now recognised too.
+
 ## 0.1.0 (2026-11-14)
 
 Initial release. Requires Emacs 29.1 or newer, linked against libtree-sitter 0.25 or newer.
