@@ -6,9 +6,17 @@
 
 ## Unreleased
 
+### New features
+
+- `curry-repl-root-function` chooses the directory the REPL starts in.
+- `curry-repl-program-name` defaults to `auto`, which runs `cabal repl`, `stack ghci` or `ghci` depending on the project around the current file. `"ghci"`, `"cabal repl"` and `"stack ghci"` are safe as directory-local values.
+- `cabal repl` loads the package containing the current file, so it starts in projects with several packages.
+- Each project root gets its own GHCi REPL, named `*GHCi: pkg*`, and source buffers send to the REPL of their own project.
+
 ### Bug fixes
 
 - [#10](https://github.com/tmcgilchrist/curry-mode/issues/10): GHC warnings in `compile` output and the GHCi REPL are now treated as warnings, with `compilation-warning-face`, instead of as errors. GHC's `FILE:(LINE,COL)-(LINE,COL):` multi-line locations are now recognised too.
+- `C-c C-z` (`curry-repl-switch-to-repl`) and `curry-repl-start` run `cabal repl` from the Cabal project root and `stack ghci` from the Stack project root, instead of from the current file's directory.
 
 ## 0.1.0 (2026-11-14)
 

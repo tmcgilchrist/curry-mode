@@ -39,19 +39,37 @@
 (require 'comint)
 (require 'pulse)
 (require 'curry-mode)
+(require 'curry-cabal-interaction)
 
 (defgroup curry-repl nil
   "GHCi REPL integration for curry-mode."
   :prefix "curry-repl-"
   :group 'curry)
 
-(defcustom curry-repl-program-name "ghci"
-  "Program name for invoking GHCi.
-Can also be set to \"cabal repl\" or \"stack ghci\" for
-project-aware REPL sessions."
-  :type 'string
+(defun curry-repl--safe-program-p (value)
+  "Return non-nil if VALUE is a safe `curry-repl-program-name'.
+Only `auto' and the three standard commands are safe as file or
+directory local values, so a cloned project can't choose an
+arbitrary program to run."
+  (or (eq value 'auto)
+      (and (member value '("ghci" "cabal repl" "stack ghci")) t)))
+
+(defcustom curry-repl-program-name 'auto
+  "Command for starting GHCi, or `auto' to choose one from the project.
+With `auto', the REPL runs \"cabal repl\" below a `cabal.project',
+\"stack ghci\" below a `stack.yaml', \"cabal repl\" below a
+`.cabal' file, and \"ghci\" otherwise, checked in that order.
+
+A string is the command to run, such as \"cabal repl\" or
+\"stack ghci\".  When the command is just \"cabal repl\", and
+`curry-repl-program-args' is empty, the REPL loads the package
+containing the current file, which a project with several packages
+needs."
+  :type '(choice (const :tag "Choose from the project" auto)
+                 (string :tag "Command"))
+  :safe #'curry-repl--safe-program-p
   :group 'curry-repl
-  :package-version '(curry-mode . "0.1.0"))
+  :package-version '(curry-mode . "0.2.0"))
 
 (defcustom curry-repl-program-args nil
   "Command line arguments for `curry-repl-program-name'."
@@ -59,8 +77,25 @@ project-aware REPL sessions."
   :group 'curry-repl
   :package-version '(curry-mode . "0.1.0"))
 
+(defcustom curry-repl-root-function #'curry-repl-project-root
+  "Function returning the directory to start the REPL in.
+It takes no arguments.  If it returns nil, the REPL starts in the
+current buffer's `default-directory'.  To use the current `project':
+
+  (setq curry-repl-root-function
+        (lambda ()
+          (when-let* ((project (project-current)))
+            (project-root project))))"
+  :type '(choice (function-item curry-repl-project-root)
+                 (function :tag "Custom function"))
+  :group 'curry-repl
+  :package-version '(curry-mode . "0.2.0"))
+
 (defcustom curry-repl-buffer-name "*GHCi*"
-  "Name of the GHCi REPL buffer."
+  "Base name of GHCi REPL buffers.
+Each project root gets its own REPL, named after the root's
+directory: \"*GHCi: pkg*\".  A REPL started outside any project
+uses this name as it is."
   :type 'string
   :group 'curry-repl
   :package-version '(curry-mode . "0.1.0"))
@@ -96,6 +131,11 @@ Set to nil to use only the basic REPL font-lock keywords for input."
   "Regexp matching GHCi prompts.
 Matches \"Prelude> \", \"Main> \", \"ghci> \", \"> \",
 \"Prelude Data.List> \", and \"*Main> \" style prompts.")
+
+(defvar-local curry-repl--root nil
+  "Project root of the REPL in this buffer, or nil for none.
+Source buffers find their REPL by comparing this with their own
+root, from `curry-repl-root-function'.")
 
 (defvar-local curry-repl--source-buffer nil
   "Source buffer from which the REPL was last invoked.
@@ -154,21 +194,137 @@ Highlights type information and GHCi commands.")
     (setq-local comint-indirect-setup-function #'curry-mode)
     (comint-fontify-input-mode)))
 
+(defun curry-repl--locate (dir name)
+  "Return the nearest ancestor of DIR containing NAME, or nil.
+NAME is a file name or a predicate, as for `locate-dominating-file'."
+  (when-let* ((found (locate-dominating-file dir name)))
+    (file-name-as-directory (expand-file-name found))))
+
+(defun curry-repl--tool ()
+  "Return the build tool for `curry-repl-program-name', and its root.
+The value is (TOOL . ROOT), where TOOL is `cabal', `stack' or
+`ghci', and ROOT is the tool's project root above
+`default-directory', or nil.  A `default-directory' that no longer
+exists has no root."
+  (let ((dir default-directory))
+    (if (eq curry-repl-program-name 'auto)
+        (cond
+         ((not (file-directory-p dir)) (cons 'ghci nil))
+         ((curry-repl--locate dir "cabal.project")
+          (cons 'cabal (curry-cabal--locate-project-root dir)))
+         ((curry-repl--locate dir "stack.yaml")
+          (cons 'stack (curry-repl--locate dir "stack.yaml")))
+         ((curry-cabal--locate-project-root dir)
+          (cons 'cabal (curry-cabal--locate-project-root dir)))
+         (t (cons 'ghci nil)))
+      (let ((program (file-name-nondirectory
+                      (or (car (split-string curry-repl-program-name)) ""))))
+        (cond
+         ((not (file-directory-p dir)) (cons 'ghci nil))
+         ((string-prefix-p "cabal" program)
+          (cons 'cabal (curry-cabal--locate-project-root dir)))
+         ((string-prefix-p "stack" program)
+          (cons 'stack (curry-repl--locate dir "stack.yaml")))
+         (t (cons 'ghci nil)))))))
+
+(defun curry-repl--cabal-package ()
+  "Return the name of the Cabal package containing `default-directory'.
+The name comes from the `name' field of the nearest `.cabal' file,
+or from the file's name when it has none.  Return nil when there is
+no `.cabal' file, or more than one in the same directory."
+  (when-let* ((dir (curry-repl--locate default-directory
+                                       #'curry-cabal--cabal-files))
+              (files (curry-cabal--cabal-files dir t))
+              ((null (cdr files))))
+    (with-temp-buffer
+      (insert-file-contents (car files))
+      (let ((case-fold-search t))
+        (if (re-search-forward "^name[ \t]*:[ \t]*\\([^ \t\n]+\\)" nil t)
+            (match-string 1)
+          (file-name-base (car files)))))))
+
+(defun curry-repl--command ()
+  "Return the REPL command line, as a list of strings."
+  (let* ((tool (car (curry-repl--tool)))
+         (command (if (eq curry-repl-program-name 'auto)
+                      (pcase tool
+                        ('cabal (list curry-cabal-program "repl"))
+                        ('stack (list "stack" "ghci"))
+                        (_ (list "ghci")))
+                    (split-string curry-repl-program-name)))
+         (package (and (eq tool 'cabal)
+                       (equal (cdr command) '("repl"))
+                       (null curry-repl-program-args)
+                       (curry-repl--cabal-package))))
+    (append command (and package (list package)) curry-repl-program-args)))
+
+(defun curry-repl-project-root ()
+  "Return the project root to start the REPL in, or nil.
+This is the Cabal project root for \"cabal repl\", the directory
+containing `stack.yaml' for \"stack ghci\", and nil for \"ghci\".
+See `curry-repl-program-name' for how `auto' chooses between them."
+  (cdr (curry-repl--tool)))
+
+;;; Finding the REPL for a buffer
+
+(defun curry-repl--current-root ()
+  "Return the project root of the current buffer's REPL, or nil."
+  (if (derived-mode-p 'curry-repl-mode)
+      curry-repl--root
+    (when-let* ((root (funcall curry-repl-root-function)))
+      (file-name-as-directory (expand-file-name root)))))
+
+(defun curry-repl--find-buffer (root)
+  "Return the REPL buffer for ROOT, live process or not, or nil."
+  (seq-find (lambda (buffer)
+              (with-current-buffer buffer
+                (and (derived-mode-p 'curry-repl-mode)
+                     (equal curry-repl--root root))))
+            (buffer-list)))
+
+(defun curry-repl--buffer ()
+  "Return the current buffer's REPL buffer, or nil.
+In a REPL buffer, that is the buffer itself."
+  (if (derived-mode-p 'curry-repl-mode)
+      (current-buffer)
+    (curry-repl--find-buffer (curry-repl--current-root))))
+
+(defun curry-repl--buffer-name (root)
+  "Return a name for a new REPL buffer for ROOT.
+See `curry-repl-buffer-name'."
+  (generate-new-buffer-name
+   (if (null root)
+       curry-repl-buffer-name
+     (let ((project (file-name-nondirectory (directory-file-name root))))
+       (if (string-match "\\`\\*\\(.*\\)\\*\\'" curry-repl-buffer-name)
+           (format "*%s: %s*" (match-string 1 curry-repl-buffer-name) project)
+         (format "%s: %s" curry-repl-buffer-name project))))))
+
 ;;;###autoload
 (defun curry-repl-start ()
-  "Start a GHCi process in a new buffer.
-If a process is already running, switch to its buffer."
+  "Start a GHCi process for the current project, and return its buffer.
+If the project's REPL is already running, switch to its buffer.
+The process starts in the directory returned by
+`curry-repl-root-function', or in the current buffer's directory
+when that returns nil.  Each root has its own REPL."
   (interactive)
-  (if (comint-check-proc curry-repl-buffer-name)
-      (pop-to-buffer curry-repl-buffer-name)
-    (let* ((cmdlist (append (split-string curry-repl-program-name)
-                            curry-repl-program-args))
-           (buffer (apply #'make-comint-in-buffer
-                          "GHCi" curry-repl-buffer-name
-                          (car cmdlist) nil (cdr cmdlist))))
-      (with-current-buffer buffer
-        (curry-repl-mode))
-      (pop-to-buffer buffer))))
+  (let* ((root (curry-repl--current-root))
+         (existing (curry-repl--find-buffer root)))
+    (if (comint-check-proc existing)
+        (progn (pop-to-buffer existing) existing)
+      (let ((dir (or root (file-name-as-directory default-directory)))
+            (cmdlist (curry-repl--command))
+            (buffer (or existing
+                        (get-buffer-create (curry-repl--buffer-name root)))))
+        ;; Enable the mode first, so hooks such as envrc's see DIR.
+        (with-current-buffer buffer
+          (setq default-directory dir)
+          (curry-repl-mode)
+          (setq curry-repl--root root))
+        (apply #'make-comint-in-buffer
+               "GHCi" buffer (car cmdlist) nil (cdr cmdlist))
+        (pop-to-buffer buffer)
+        buffer))))
 
 (defun curry-repl-switch-to-source ()
   "Switch from the REPL back to the source buffer that last invoked it."
@@ -185,18 +341,17 @@ If a REPL is already running, switch to it; otherwise start a new one.
 Use \\[curry-repl-switch-to-source] in the REPL to return."
   (interactive)
   (let ((source (current-buffer)))
-    (if (comint-check-proc curry-repl-buffer-name)
-        (pop-to-buffer curry-repl-buffer-name)
-      (curry-repl-start))
-    (setq curry-repl--source-buffer source)))
+    (with-current-buffer (curry-repl-start)
+      (setq curry-repl--source-buffer source))))
 
 (defun curry-repl--process ()
-  "Return the REPL process, or nil if not running."
-  (get-buffer-process curry-repl-buffer-name))
+  "Return the process of the current buffer's REPL, or nil."
+  (when-let* ((buffer (curry-repl--buffer)))
+    (get-buffer-process buffer)))
 
 (defun curry-repl--ensure-running ()
-  "Start a GHCi REPL if one is not already running."
-  (unless (comint-check-proc curry-repl-buffer-name)
+  "Start the current buffer's REPL if it is not already running."
+  (unless (comint-check-proc (curry-repl--buffer))
     (save-window-excursion (curry-repl-start))))
 
 (defun curry-repl--send-string (string)
@@ -298,7 +453,8 @@ Defaults to the current buffer's file."
 (defun curry-repl-clear-buffer ()
   "Clear the GHCi REPL buffer."
   (interactive)
-  (with-current-buffer curry-repl-buffer-name
+  (with-current-buffer (or (curry-repl--buffer)
+                          (user-error "No GHCi REPL for this buffer"))
     (let ((inhibit-read-only t))
       (erase-buffer)
       (comint-send-input))))
@@ -306,7 +462,7 @@ Defaults to the current buffer's file."
 (defun curry-repl-interrupt ()
   "Interrupt the GHCi REPL process."
   (interactive)
-  (when (comint-check-proc curry-repl-buffer-name)
+  (when (comint-check-proc (curry-repl--buffer))
     (interrupt-process (curry-repl--process))))
 
 ;;; Minor mode for source buffers
