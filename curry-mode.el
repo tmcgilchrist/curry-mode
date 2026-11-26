@@ -704,23 +704,22 @@ Uses tree-sitter sentence navigation to select the entire statement
 (defvar-local curry--imports-jump-marker nil
   "Marker holding the position to return to from `curry-jump-to-imports'.")
 
-(defun curry--first-import-node ()
-  "Return the first top-level `import' node, or nil."
+(defun curry--imports-node ()
+  "Return the top-level `imports' node, or nil.
+The top-level `imports' node always starts with an `import' node."
   (when (treesit-parser-list)
-    (seq-find (lambda (n) (string= "import" (treesit-node-type n)))
-              (treesit-node-children (treesit-buffer-root-node 'haskell)))))
+    (treesit-node-child-by-field-name (treesit-buffer-root-node 'haskell) "imports")))
 
 (defun curry--inside-import-p ()
-  "Return non-nil if point is inside an `import' node."
-  (when-let* ((node (treesit-node-at (point) 'haskell)))
-    (treesit-parent-until
-     node
-     (lambda (n) (string= "import" (treesit-node-type n)))
-     t)))
+  "Return non-nil if point is inside the top-level `imports' node.
+Comments between imports count as inside."
+  (when-let* ((node (curry--imports-node)))
+    (and (<= (treesit-node-start node) (point))
+         (< (point) (treesit-node-end node)))))
 
 (defun curry-jump-to-imports ()
   "Jump to the first `import' declaration in the buffer.
-If point is already inside an import, return to the position
+If point is already inside the imports, return to the position
 held before the previous jump."
   (interactive)
   (cond
@@ -732,7 +731,7 @@ held before the previous jump."
       (setq curry--imports-jump-marker nil)
       (goto-char target)))
    (t
-    (let ((node (curry--first-import-node)))
+    (let ((node (curry--imports-node)))
       (if node
           (progn
             (setq curry--imports-jump-marker (point-marker))

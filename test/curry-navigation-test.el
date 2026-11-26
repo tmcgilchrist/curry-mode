@@ -339,6 +339,83 @@ changing."
       (let ((index (treesit-simple-imenu)))
         (expect (assoc "Import" index) :not :to-be nil)))))
 
+;;;; curry-jump-to-imports
+
+(defconst curry-test--imports-module "
+        module M where
+
+        -- leading comment
+        import Data.List
+        -- between imports
+        import Data.Maybe
+        -- trailing comment
+
+        foo = 1
+
+        bar = 2"
+  "A module with comments around and between its imports.")
+
+(describe "navigation: curry-jump-to-imports"
+  (before-all
+    (curry-test-skip-unless-grammar))
+
+  (it "jumps from a declaration to the first import"
+    (with-curry-buffer curry-test--imports-module
+      (search-forward "bar")
+      (curry-jump-to-imports)
+      (expect (looking-at "import Data.List") :to-be-truthy)))
+
+  (it "returns to the original position on a second call"
+    (with-curry-buffer curry-test--imports-module
+      (search-forward "bar")
+      (let ((origin (point)))
+        (curry-jump-to-imports)
+        (curry-jump-to-imports)
+        (expect (point) :to-equal origin))))
+
+  (it "returns when point has moved to a later import"
+    (with-curry-buffer curry-test--imports-module
+      (search-forward "bar")
+      (let ((origin (point)))
+        (curry-jump-to-imports)
+        (search-forward "Data.Maybe")
+        (curry-jump-to-imports)
+        (expect (point) :to-equal origin))))
+
+  (it "jumps again after returning"
+    (with-curry-buffer curry-test--imports-module
+      (search-forward "bar")
+      (curry-jump-to-imports)
+      (curry-jump-to-imports)
+      (curry-jump-to-imports)
+      (expect (looking-at "import Data.List") :to-be-truthy)))
+
+  (it "treats the start of the first declaration as outside the imports"
+    (with-curry-buffer curry-test--imports-module
+      (search-forward "bar")
+      (curry-jump-to-imports)
+      (search-forward-regexp "^foo")
+      (beginning-of-line)
+      (curry-jump-to-imports)
+      (expect (looking-at "import Data.List") :to-be-truthy)))
+
+  (it "jumps to the first import in a module without a header"
+    (with-curry-buffer "
+        import Data.List
+
+        foo = 1"
+      (goto-char (point-max))
+      (curry-jump-to-imports)
+      (expect (point) :to-equal (point-min))))
+
+  (it "signals a user error when there are no imports"
+    (with-curry-buffer "
+        module M where
+
+        foo = 1"
+      (goto-char (point-max))
+      (expect (curry-jump-to-imports) :to-throw 'user-error))))
+
 ;;;; which-func / add-log integration
 
 (describe "navigation: which-func"
