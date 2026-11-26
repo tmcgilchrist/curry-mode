@@ -706,18 +706,20 @@ Uses tree-sitter sentence navigation to select the entire statement
 
 (defun curry--imports-node ()
   "Return the top-level `imports' node, or nil.
-The top-level `imports' node always start with an `import' node."
+The top-level `imports' node always starts with an `import' node."
   (when (treesit-parser-list)
     (treesit-node-child-by-field-name (treesit-buffer-root-node 'haskell) "imports")))
 
 (defun curry--inside-import-p ()
-  "Return non-nil if point is inside an `import' node."
+  "Return non-nil if point is inside the top-level `imports' node.
+Comments between imports count as inside."
   (when-let* ((node (curry--imports-node)))
-    (<= (treesit-node-start node) (point) (treesit-node-end node))))
+    (and (<= (treesit-node-start node) (point))
+         (< (point) (treesit-node-end node)))))
 
 (defun curry-jump-to-imports ()
   "Jump to the first `import' declaration in the buffer.
-If point is already inside an import, return to the position
+If point is already inside the imports, return to the position
 held before the previous jump."
   (interactive)
   (cond
