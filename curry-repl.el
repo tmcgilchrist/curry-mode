@@ -193,7 +193,8 @@ when that returns nil."
   (interactive)
   (if (comint-check-proc curry-repl-buffer-name)
       (pop-to-buffer curry-repl-buffer-name)
-    (let* ((dir (or (funcall curry-repl-root-function) default-directory))
+    (let* ((dir (file-name-as-directory
+                 (or (funcall curry-repl-root-function) default-directory)))
            (cmdlist (append (split-string curry-repl-program-name)
                             curry-repl-program-args))
            (buffer (get-buffer-create curry-repl-buffer-name)))
@@ -220,9 +221,7 @@ If a REPL is already running, switch to it; otherwise start a new one.
 Use \\[curry-repl-switch-to-source] in the REPL to return."
   (interactive)
   (let ((source (current-buffer)))
-    (if (comint-check-proc curry-repl-buffer-name)
-        (pop-to-buffer curry-repl-buffer-name)
-      (curry-repl-start))
+    (curry-repl-start)
     (setq curry-repl--source-buffer source)))
 
 (defun curry-repl--process ()

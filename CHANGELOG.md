@@ -13,7 +13,7 @@
 ### Bug fixes
 
 - [#10](https://github.com/tmcgilchrist/curry-mode/issues/10): GHC warnings in `compile` output and the GHCi REPL are now treated as warnings, with `compilation-warning-face`, instead of as errors. GHC's `FILE:(LINE,COL)-(LINE,COL):` multi-line locations are now recognised too.
-- `curry-repl-start` (`C-c C-z`) runs `cabal repl` from the Cabal project root and `stack ghci` from the Stack project root, instead of from the current file's directory.
+- `C-c C-z` (`curry-repl-switch-to-repl`) and `curry-repl-start` run `cabal repl` from the Cabal project root and `stack ghci` from the Stack project root, instead of from the current file's directory.
 
 ## 0.1.0 (2026-11-14)
 

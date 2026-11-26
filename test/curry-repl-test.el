@@ -99,6 +99,14 @@ Return the absolute name of the last one."
       (curry-repl-start)
       (expect started-in :to-equal "/tmp/")))
 
+  (it "treats a root without a trailing slash as a directory"
+    (let ((default-directory "/tmp/src/Data/")
+          (curry-repl-root-function (lambda () "/tmp/src"))
+          (curry-repl-history-file nil)
+          (curry-repl-fontify-input nil))
+      (curry-repl-start)
+      (expect started-in :to-equal "/tmp/src/")))
+
   (it "falls back to the current directory when the function returns nil"
     (let ((default-directory "/tmp/src/Data/")
           (curry-repl-root-function #'ignore)
