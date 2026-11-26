@@ -354,12 +354,28 @@ regular `.hs` buffers. To disable this:
 
 ### Configuration
 
-```emacs-lisp
-;; Use cabal repl instead of bare ghci
-(setq curry-repl-program-name "cabal repl")
+By default (`curry-repl-program-name` set to `auto`), `C-c C-z` picks the
+REPL from the project around the current file:
 
-;; Or use stack
+1. `cabal repl` below a `cabal.project`
+2. `stack ghci` below a `stack.yaml`
+3. `cabal repl` below a `.cabal` file
+4. `ghci` otherwise
+
+`cabal repl` starts in the Cabal project root and loads the package that
+contains the current file, so it works in projects with several packages.
+`stack ghci` starts in the directory holding `stack.yaml`.
+
+To always run one command, set it to a string. `"ghci"`, `"cabal repl"`
+and `"stack ghci"` are also safe to set in `.dir-locals.el`.
+
+```emacs-lisp
+;; Always use stack, even in a project with a cabal.project
 (setq curry-repl-program-name "stack ghci")
+
+;; Load a particular component
+(setq curry-repl-program-name "cabal repl"
+      curry-repl-program-args '("test:spec"))
 
 ;; Change the REPL buffer name
 (setq curry-repl-buffer-name "*My-GHCi*")
