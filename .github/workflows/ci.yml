@@ -30,7 +30,7 @@ jobs:
 
       - name: Install tree-sitter grammars
         run: |
-          eldev eval '(curry-install-grammars)'
+          eldev eval '(curry-install-grammar)'
           eldev eval '(progn (load "curry-cabal-mode") (curry-cabal-install-grammar))'
 
       - run: eldev byte-compile --warnings-as-errors

@@ -29,7 +29,7 @@ server.
 - Electric indentation and electric pairs (parentheses, brackets, braces, double quotes)
 - Cabal file editing (`curry-cabal-mode`) with font-lock, indentation, imenu, and `cabal-fmt` integration
 - Cabal build commands (`curry-cabal-interaction-mode`) -- build, test, run, clean, repl, haddock
-- Easy installation of the Haskell tree-sitter grammar via `M-x curry-install-grammars`
+- Easy installation of the Haskell tree-sitter grammar via `M-x curry-install-grammar`
 - Compilation error regexp for GHC output (`M-g n` / `M-g p`)
 - Eglot integration (auto-configured for `haskell-language-server-wrapper`)
 - Debugging via [dape](https://github.com/svaante/dape) + [hdb](https://github.com/well-typed/haskell-debugger) (experimental, GHC 9.14+)
@@ -58,7 +58,7 @@ the generated parser files. The grammar is installed automatically when needed,
 or manually via:
 
 ```
-M-x curry-install-grammars
+M-x curry-install-grammar
 ```
 
 ## Usage
