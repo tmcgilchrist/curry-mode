@@ -87,6 +87,7 @@ Formatting uses `curry-cabal-format-command'."
 Each entry is a list of (LANGUAGE URL REV SOURCE-DIR).
 Suitable for use as the value of `treesit-language-source-alist'.")
 
+;;;###autoload
 (defun curry-cabal-install-grammar (&optional force)
   "Install the Cabal tree-sitter grammar if not already available.
 With prefix argument FORCE, reinstall even if already installed."

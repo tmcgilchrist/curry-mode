@@ -127,6 +127,7 @@ Suitable for use as the value of `treesit-language-source-alist'.")
   (when (< (treesit-library-abi-version) 15)
     (error "The curry-mode grammars need libtree-sitter 0.25 or newer")))
 
+;;;###autoload
 (defun curry-install-grammar (&optional force)
   "Install required language grammar if not already available.
 With prefix argument FORCE, reinstall grammars even if they are
